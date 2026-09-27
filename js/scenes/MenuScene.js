@@ -7,142 +7,122 @@ class MenuScene extends Phaser.Scene {
     const W = this.scale.width;
     const H = this.scale.height;
     const cx = W / 2;
+    const cy = H / 2;
 
     // Background gradient
-    const bg = this.add.graphics();
-    bg.fillGradientStyle(0x0a0a15, 0x0a0a15, 0x1a1a3e, 0x1a1a3e, 1);
-    bg.fillRect(0, 0, W, H);
+    this.createBackground(W, H);
 
     // Title
-    const title = this.add.text(cx, 120, "⚔️ TACTICAL CARD ⚔️", {
-      fontSize: "58px",
-      color: "#f0c040",
-      fontStyle: "bold",
-      stroke: "#000",
-      strokeThickness: 8,
+    this.add.text(cx, H * 0.15, "EXERCIST", {
+      fontFamily: THEME.fonts.title,
+      fontSize: this.getResponsiveSize(W, 72, 42),
+      color: "#fbbf24",
+      fontStyle: "900",
+    }).setOrigin(0.5).setShadow(0, 0, "#fbbf24", 20, true, true);
+
+    this.add.text(cx, H * 0.15 + this.getResponsiveSize(W, 55, 35), "⚔ TACTICAL CARD STRATEGY ⚔", {
+      fontFamily: THEME.fonts.body,
+      fontSize: this.getResponsiveSize(W, 16, 12),
+      color: "#94a3b8",
+      fontStyle: "600",
     }).setOrigin(0.5);
 
-    // Floating animation
-    this.tweens.add({
-      targets: title,
-      y: 130,
-      duration: 1800,
-      yoyo: true,
-      repeat: -1,
-      ease: "Sine.easeInOut",
-    });
+    // Buttons
+    const btnW = this.getResponsiveSize(W, 280, 240);
+    const btnH = this.getResponsiveSize(W, 54, 48);
+    const btnGap = 14;
+    const startY = H * 0.42;
 
-    this.add.text(cx, 190, "Grid Strategy Game", {
-      fontSize: "22px",
-      color: "#aaa",
-      fontStyle: "italic",
-    }).setOrigin(0.5);
-
-    // Decorative cards
-    this.createDecoCard(cx - 400, 250, "⚔️", 0x2980b9);
-    this.createDecoCard(cx - 200, 220, "🏹", 0x27ae60);
-    this.createDecoCard(cx + 200, 220, "🔥", 0xe67e22);
-    this.createDecoCard(cx + 400, 250, "🛡️", 0x8e44ad);
-
-    // Menu buttons
-    this.createButton(cx, 400, "▶  PLAY", 0x2ecc71, () => {
+    this.createButton(cx, startY, btnW, btnH, "▶  PLAY", THEME.colors.green, () => {
       this.playClick();
       this.scene.start("GameScene");
     });
 
-    this.createButton(cx, 480, "📖  HOW TO PLAY", 0x3498db, () => {
+    this.createButton(cx, startY + btnH + btnGap, btnW, btnH, "📖  HOW TO PLAY", THEME.colors.blue, () => {
       this.playClick();
       this.scene.start("HowToPlayScene");
     });
 
-    this.createButton(cx, 560, "⚙  SETTINGS", 0xf39c12, () => {
+    this.createButton(cx, startY + (btnH + btnGap) * 2, btnW, btnH, "⚙  SETTINGS", THEME.colors.gold, () => {
       this.playClick();
       this.scene.start("SettingsScene");
     });
 
-    this.createButton(cx, 640, "❌  QUIT", 0xe74c3c, () => {
-      this.playClick();
-      // Karena game web, kita cuma tampilin pesan
-      this.showToast("Tutup tab browser buat keluar 😄");
-    });
-
     // Footer
-    this.add.text(cx, H - 30, "v0.3  |  Dibuat pakai Phaser.js", {
-      fontSize: "14px",
-      color: "#555",
-    }).setOrigin(0.5);
-  }
-
-  createDecoCard(x, y, icon, color) {
-    const card = this.add.container(x, y);
-    const bg = this.add.rectangle(0, 0, 100, 130, 0x16213e);
-    bg.setStrokeStyle(3, color);
-    const iconText = this.add.text(0, 0, icon, { fontSize: "48px" }).setOrigin(0.5);
-    card.add([bg, iconText]);
-    card.setAngle(Phaser.Math.Between(-15, 15));
-
-    this.tweens.add({
-      targets: card,
-      y: y - 15,
-      duration: Phaser.Math.Between(1500, 2200),
-      yoyo: true,
-      repeat: -1,
-      ease: "Sine.easeInOut",
-    });
-  }
-
-  createButton(x, y, label, color, onClick) {
-    const btn = this.add.rectangle(x, y, 320, 60, color);
-    btn.setStrokeStyle(3, 0xffffff, 0.3);
-    btn.setInteractive({ useHandCursor: true });
-
-    const txt = this.add.text(x, y, label, {
-      fontSize: "22px",
-      color: "#fff",
-      fontStyle: "bold",
+    this.add.text(cx, H - 20, "v1.0  ·  Dibuat dengan Phaser.js", {
+      fontFamily: THEME.fonts.body,
+      fontSize: "11px",
+      color: "#475569",
     }).setOrigin(0.5);
 
-    btn.on("pointerover", () => {
-      this.tweens.add({ targets: [btn, txt], scale: 1.05, duration: 100 });
-      btn.setStrokeStyle(3, 0xffffff, 0.8);
+    // Handle resize
+    this.scale.on("resize", () => this.scene.restart());
+  }
+
+  getResponsiveSize(W, desktopSize, mobileSize) {
+    return W < 768 ? mobileSize : desktopSize;
+  }
+
+  createBackground(W, H) {
+    const g = this.add.graphics();
+    g.fillGradientStyle(0x0f172a, 0x0f172a, 0x050810, 0x050810, 1);
+    g.fillRect(0, 0, W, H);
+
+    // Floating particles (bintang)
+    for (let i = 0; i < 40; i++) {
+      const x = Phaser.Math.Between(0, W);
+      const y = Phaser.Math.Between(0, H);
+      const size = Phaser.Math.FloatBetween(0.5, 2);
+      const star = this.add.circle(x, y, size, 0xfbbf24, 0.3);
+
+      this.tweens.add({
+        targets: star,
+        alpha: { from: 0.1, to: 0.6 },
+        duration: Phaser.Math.Between(1500, 3500),
+        yoyo: true,
+        repeat: -1,
+        delay: Phaser.Math.Between(0, 2000),
+      });
+    }
+  }
+
+  createButton(x, y, w, h, label, color, onClick) {
+    const container = this.add.container(x, y);
+
+    // Glow
+    const glow = this.add.rectangle(0, 0, w + 4, h + 4, color, 0.15);
+    glow.setOrigin(0.5);
+
+    // Main
+    const bg = this.add.rectangle(0, 0, w, h, color);
+    bg.setStrokeStyle(2, 0xffffff, 0.15);
+
+    const txt = this.add.text(0, 0, label, {
+      fontFamily: THEME.fonts.body,
+      fontSize: this.scale.width < 768 ? "16px" : "18px",
+      color: "#ffffff",
+      fontStyle: "700",
+    }).setOrigin(0.5);
+
+    container.add([glow, bg, txt]);
+    container.setSize(w, h);
+    container.setInteractive({ useHandCursor: true });
+
+    container.on("pointerover", () => {
+      this.tweens.add({ targets: container, scale: 1.05, duration: 120, ease: "Back.easeOut" });
+      glow.setAlpha(0.4);
     });
-    btn.on("pointerout", () => {
-      this.tweens.add({ targets: [btn, txt], scale: 1.0, duration: 100 });
-      btn.setStrokeStyle(3, 0xffffff, 0.3);
+    container.on("pointerout", () => {
+      this.tweens.add({ targets: container, scale: 1.0, duration: 120 });
+      glow.setAlpha(0.15);
     });
-    btn.on("pointerdown", onClick);
+    container.on("pointerdown", onClick);
   }
 
   playClick() {
+    if (!gameSettings.soundEnabled) return;
     try {
-      if (gameSettings.soundEnabled && this.sound.get("click")) {
-        this.sound.play("click", { volume: gameSettings.volume });
-      }
+      if (this.sound.get("click")) this.sound.play("click", { volume: gameSettings.volume });
     } catch (e) {}
-  }
-
-  showToast(msg) {
-    const W = this.scale.width;
-    const toast = this.add.text(W / 2, 720, msg, {
-      fontSize: "16px",
-      color: "#f0c040",
-      backgroundColor: "#000",
-      padding: { x: 20, y: 10 },
-    }).setOrigin(0.5).setAlpha(0);
-
-    this.tweens.add({
-      targets: toast,
-      alpha: 1,
-      duration: 200,
-      onComplete: () => {
-        this.tweens.add({
-          targets: toast,
-          alpha: 0,
-          delay: 1500,
-          duration: 400,
-          onComplete: () => toast.destroy(),
-        });
-      },
-    });
   }
 }

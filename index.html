@@ -2,32 +2,26 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>Tactical Card Strategy</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      background: #0a0a15;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      font-family: Arial, sans-serif;
-      overflow: hidden;
-    }
-    #game-container {
-      box-shadow: 0 0 60px rgba(240, 192, 64, 0.4);
-      border-radius: 12px;
-      overflow: hidden;
-      max-width: 100vw;
-      max-height: 100vh;
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0e1a">
+  <title>Exercist — Tactical Card Strategy</title>
+
+  <!-- Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- Phaser -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
 </head>
 <body>
   <div id="game-container"></div>
 
   <script src="js/data/cards.js"></script>
+  <script src="js/ui/theme.js"></script>
   <script src="js/scenes/BootScene.js"></script>
   <script src="js/scenes/MenuScene.js"></script>
   <script src="js/scenes/HowToPlayScene.js"></script>

@@ -6,13 +6,27 @@ class GameScene extends Phaser.Scene {
   create() {
     this.CANVAS_W = this.scale.width;
     this.CANVAS_H = this.scale.height;
+    this.isMobile = this.CANVAS_W < 900;
 
-    // === LAYOUT (board center) ===
-    this.TILE_SIZE = 100;
+    // === RESPONSIVE LAYOUT — pakai % dari tinggi canvas ===
+    // Top bar: 0-8% | Board: 10-72% | Hint: 73% | Hand: 76-100%
+    this.TOP_BAR_H = Math.max(50, this.CANVAS_H * 0.08);
+    
+    // Space buat board: antara top bar & hint
+    const boardAreaTop = this.TOP_BAR_H + 10;
+    const boardAreaBottom = this.CANVAS_H * 0.72;
+    const boardAreaH = boardAreaBottom - boardAreaTop;
+    const boardAreaW = this.CANVAS_W * 0.95;
+    
+    // Tile size = min(lebar area / 5, tinggi area / 5) - gap
+    const maxTileByW = (boardAreaW - 4 * 6) / 5;
+    const maxTileByH = (boardAreaH - 4 * 6) / 5;
+    this.TILE_SIZE = Math.floor(Math.min(maxTileByW, maxTileByH, 110));
     this.TILE_GAP = 6;
-    this.BOARD_W = 5 * this.TILE_SIZE + 4 * this.TILE_GAP; // 524
+    this.BOARD_W = 5 * this.TILE_SIZE + 4 * this.TILE_GAP;
+    this.BOARD_H = this.BOARD_W;
     this.BOARD_X = (this.CANVAS_W - this.BOARD_W) / 2;
-    this.BOARD_Y = 140;
+    this.BOARD_Y = boardAreaTop + (boardAreaH - this.BOARD_H) / 2;
 
     // === DIFFICULTY ===
     const diff = gameSettings.difficulty;
@@ -21,25 +35,14 @@ class GameScene extends Phaser.Scene {
 
     this.gameState = {
       turn: 1,
-      playerAP: 3,
-      enemyAP: 0,
-      playerKingHP: kingHP,
-      enemyKingHP: kingHP,
-      maxKingHP: kingHP,
+      playerAP: 3, enemyAP: 0,
+      playerKingHP: kingHP, enemyKingHP: kingHP, maxKingHP: kingHP,
       board: [],
-      deck: [],
-      hand: [],
-      discard: [],
-      enemyDeck: [],
-      enemyHand: [],
-      enemyDiscard: [],
-      selectedCard: null,
-      selectedUnit: null,
-      isAITurn: false,
-      isGameOver: false,
-      isAnimating: false,
-      aiBonusAP: aiBonusAP,
-      infoPanelOpen: false,
+      deck: [], hand: [], discard: [],
+      enemyDeck: [], enemyHand: [], enemyDiscard: [],
+      selectedCard: null, selectedUnit: null,
+      isAITurn: false, isGameOver: false, isAnimating: false,
+      aiBonusAP: aiBonusAP, infoPanelOpen: false,
     };
 
     this.boardContainer = this.add.container(this.BOARD_X, this.BOARD_Y);
@@ -57,15 +60,15 @@ class GameScene extends Phaser.Scene {
 
     this.showTurnBanner("YOUR TURN");
     this.playSound("turn");
+
+    this.scale.on("resize", () => this.scene.restart());
   }
 
   // ===================== SOUND =====================
   playSound(key, vol = null) {
     if (!gameSettings.soundEnabled) return;
     try {
-      if (this.sound.get(key)) {
-        this.sound.play(key, { volume: vol ?? gameSettings.volume });
-      }
+      if (this.sound.get(key)) this.sound.play(key, { volume: vol ?? gameSettings.volume });
     } catch (e) {}
   }
 
@@ -74,32 +77,26 @@ class GameScene extends Phaser.Scene {
     const cy = this.CANVAS_H / 2;
 
     const container = this.add.container(cx, cy);
-    const bg = this.add.rectangle(0, 0, 320, 85, 0x000000, 0.9);
-    bg.setStrokeStyle(4, color);
+    const glow = this.add.rectangle(0, 0, 340, 95, color, 0.2);
+    const bg = this.add.rectangle(0, 0, 320, 80, 0x0f172a, 0.95);
+    bg.setStrokeStyle(3, color);
 
-    const iconText = this.add.text(-100, 0, icon, { fontSize: "52px" }).setOrigin(0.5);
+    const iconText = this.add.text(-100, 0, icon, { fontSize: "48px" }).setOrigin(0.5);
     const nameText = this.add.text(25, 0, name, {
-      fontSize: "30px",
-      color: "#" + color.toString(16).padStart(6, "0"),
-      fontStyle: "bold",
+      fontFamily: THEME.fonts.body,
+      fontSize: "26px",
+      color: THEME.hex(color),
+      fontStyle: "800",
     }).setOrigin(0.5);
 
-    container.add([bg, iconText, nameText]);
+    container.add([glow, bg, iconText, nameText]);
     container.setScale(0).setAlpha(0);
 
     this.tweens.add({
-      targets: container,
-      scale: 1,
-      alpha: 1,
-      duration: 250,
-      ease: "Back.easeOut",
+      targets: container, scale: 1, alpha: 1, duration: 250, ease: "Back.easeOut",
       onComplete: () => {
         this.tweens.add({
-          targets: container,
-          alpha: 0,
-          y: cy - 60,
-          delay: 700,
-          duration: 400,
+          targets: container, alpha: 0, y: cy - 60, delay: 700, duration: 400,
           onComplete: () => container.destroy(),
         });
       },
@@ -156,48 +153,77 @@ class GameScene extends Phaser.Scene {
 
   // ===================== TOP BAR =====================
   createTopBar() {
-    const barBg = this.add.rectangle(this.CANVAS_W / 2, 45, this.CANVAS_W - 40, 60, 0x16213e);
-    barBg.setStrokeStyle(2, 0x0f3460);
+    const W = this.CANVAS_W;
+    const barH = this.TOP_BAR_H;
+    const barY = barH / 2 + 4;
+    const padding = 16;
 
-    this.turnText = this.add.text(60, 45, "", {
-      fontSize: "20px", color: "#f0c040", fontStyle: "bold",
+    const barBg = this.add.rectangle(W / 2, barY, W - padding * 2, barH - 8, 0x0f172a, 0.9);
+    barBg.setStrokeStyle(1, 0x1e293b);
+
+    const fontSize = this.isMobile ? "13px" : "15px";
+
+    this.turnText = this.add.text(padding + 16, barY, "", {
+      fontFamily: THEME.fonts.title,
+      fontSize: this.isMobile ? "14px" : "16px",
+      color: THEME.hex(THEME.colors.gold),
+      fontStyle: "700",
     }).setOrigin(0, 0.5);
 
-    this.apText = this.add.text(280, 45, "", {
-      fontSize: "22px", color: "#2ecc71", fontStyle: "bold",
+    this.apText = this.add.text(padding + (this.isMobile ? 80 : 120), barY, "", {
+      fontFamily: THEME.fonts.body,
+      fontSize: fontSize,
+      color: THEME.hex(THEME.colors.green),
+      fontStyle: "700",
     }).setOrigin(0, 0.5);
 
-    this.hpText = this.add.text(500, 45, "", {
-      fontSize: "20px", color: "#e74c3c", fontStyle: "bold",
-    }).setOrigin(0, 0.5);
+    // HP display: di sebelah kiri tombol INFO
+    const infoW = this.isMobile ? 50 : 100;
+    const infoH = barH - 16;
+    const infoX = W - padding - (this.isMobile ? 110 : 230);
 
-    // === INFO BUTTON (toggle panel) ===
-    const infoBtn = this.add.rectangle(this.CANVAS_W - 260, 45, 130, 42, 0x3498db);
-    infoBtn.setStrokeStyle(2, 0xffffff, 0.3);
+    this.hpText = this.add.text(infoX - 20, barY, "", {
+      fontFamily: THEME.fonts.body,
+      fontSize: fontSize,
+      color: THEME.hex(THEME.colors.text),
+      fontStyle: "600",
+    }).setOrigin(1, 0.5);
+
+    // INFO button
+    const infoBtn = this.add.rectangle(infoX, barY, infoW, infoH, THEME.colors.blue);
+    infoBtn.setStrokeStyle(1, 0xffffff, 0.15);
     infoBtn.setInteractive({ useHandCursor: true });
-    this.infoBtnText = this.add.text(this.CANVAS_W - 260, 45, "ℹ️ INFO", {
-      fontSize: "15px", color: "#fff", fontStyle: "bold",
+    this.add.text(infoX, barY, this.isMobile ? "ℹ" : "ℹ INFO", {
+      fontFamily: THEME.fonts.body,
+      fontSize: this.isMobile ? "16px" : "12px",
+      color: "#ffffff",
+      fontStyle: "700",
     }).setOrigin(0.5);
 
-    infoBtn.on("pointerover", () => infoBtn.setFillStyle(0x2980b9));
-    infoBtn.on("pointerout", () => infoBtn.setFillStyle(0x3498db));
+    infoBtn.on("pointerover", () => infoBtn.setFillStyle(THEME.colors.blueDark));
+    infoBtn.on("pointerout", () => infoBtn.setFillStyle(THEME.colors.blue));
     infoBtn.on("pointerdown", () => this.toggleInfoPanel());
 
-    // === END TURN BUTTON (top bar) ===
-    this.endTurnBtn = this.add.rectangle(this.CANVAS_W - 120, 45, 190, 42, 0xf0c040);
-    this.endTurnBtn.setStrokeStyle(2, 0xffffff, 0.3);
+    // END TURN button
+    const endW = this.isMobile ? 90 : 150;
+    const endX = W - padding - endW / 2;
+    this.endTurnBtn = this.add.rectangle(endX, barY, endW, infoH, THEME.colors.gold);
+    this.endTurnBtn.setStrokeStyle(1, 0xffffff, 0.2);
     this.endTurnBtn.setInteractive({ useHandCursor: true });
-    this.endTurnBtnText = this.add.text(this.CANVAS_W - 120, 45, "END TURN →", {
-      fontSize: "16px", color: "#1a1a2e", fontStyle: "bold",
+    this.endTurnBtnText = this.add.text(endX, barY, this.isMobile ? "END" : "END TURN →", {
+      fontFamily: THEME.fonts.body,
+      fontSize: this.isMobile ? "12px" : "13px",
+      color: "#0f172a",
+      fontStyle: "800",
     }).setOrigin(0.5);
 
     this.endTurnBtn.on("pointerover", () => {
       if (this.endTurnBtn.input && this.endTurnBtn.input.enabled)
-        this.endTurnBtn.setFillStyle(0xffd700);
+        this.endTurnBtn.setFillStyle(THEME.colors.goldGlow);
     });
     this.endTurnBtn.on("pointerout", () => {
       if (this.endTurnBtn.input && this.endTurnBtn.input.enabled)
-        this.endTurnBtn.setFillStyle(0xf0c040);
+        this.endTurnBtn.setFillStyle(THEME.colors.gold);
     });
     this.endTurnBtn.on("pointerdown", () => this.onEndTurn());
 
@@ -206,29 +232,30 @@ class GameScene extends Phaser.Scene {
 
   updateTopBar() {
     this.turnText.setText(`TURN ${this.gameState.turn}`);
-    this.apText.setText(`⚡ AP: ${this.gameState.playerAP}`);
-    this.hpText.setText(`👑 You ${this.gameState.playerKingHP}  |  Enemy ${this.gameState.enemyKingHP}`);
+    this.apText.setText(`⚡ ${this.gameState.playerAP}`);
+    this.hpText.setText(`👑 You ${this.gameState.playerKingHP}  ·  Enemy ${this.gameState.enemyKingHP}`);
   }
 
   setButtonEnabled(enabled) {
     if (enabled) {
-      this.endTurnBtn.setFillStyle(0xf0c040);
+      this.endTurnBtn.setFillStyle(THEME.colors.gold);
       this.endTurnBtn.setInteractive({ useHandCursor: true });
       this.endTurnBtnText.setAlpha(1);
     } else {
-      this.endTurnBtn.setFillStyle(0x555555);
+      this.endTurnBtn.setFillStyle(0x334155);
       this.endTurnBtn.disableInteractive();
       this.endTurnBtnText.setAlpha(0.4);
     }
   }
 
-  // ===================== HINT TEXT =====================
+  // ===================== HINT =====================
   createHintText() {
-    const handY = this.BOARD_Y + 5 * this.TILE_SIZE + 4 * this.TILE_GAP + 30;
-    this.hintText = this.add.text(this.CANVAS_W / 2, handY, "", {
-      fontSize: "14px",
-      color: "#888",
-      fontStyle: "italic",
+    const y = this.BOARD_Y + this.BOARD_H + (this.CANVAS_H - this.BOARD_Y - this.BOARD_H) * 0.05 + 5;
+    this.hintText = this.add.text(this.CANVAS_W / 2, y, "", {
+      fontFamily: THEME.fonts.body,
+      fontSize: this.isMobile ? "11px" : "12px",
+      color: THEME.hex(THEME.colors.textMuted),
+      fontStyle: "500",
     }).setOrigin(0.5);
     this.updateHint();
   }
@@ -236,64 +263,56 @@ class GameScene extends Phaser.Scene {
   updateHint() {
     if (this.gameState.isAITurn) {
       this.hintText.setText("⏳ Enemy is thinking...");
-      this.hintText.setColor("#e74c3c");
+      this.hintText.setColor(THEME.hex(THEME.colors.red));
     } else if (this.gameState.selectedCard !== null) {
-      this.hintText.setText("📍 Klik tile yang nyala buat mainin kartu");
-      this.hintText.setColor("#2ecc71");
+      this.hintText.setText("📍 Klik tile yang nyala");
+      this.hintText.setColor(THEME.hex(THEME.colors.green));
     } else if (this.gameState.selectedUnit) {
-      this.hintText.setText("🔵 Biru = gerak  |  🔴 Merah = nyerang  |  Klik unit lagi buat deselect");
-      this.hintText.setColor("#f0c040");
+      this.hintText.setText("🔵 Gerak  ·  🔴 Nyerang");
+      this.hintText.setColor(THEME.hex(THEME.colors.gold));
     } else {
-      this.hintText.setText("💡 Klik kartu di hand atau klik unit di board");
-      this.hintText.setColor("#888");
+      this.hintText.setText("💡 Klik kartu atau unit");
+      this.hintText.setColor(THEME.hex(THEME.colors.textMuted));
     }
   }
 
-  // ===================== INFO PANEL (COLLAPSIBLE) =====================
+  // ===================== INFO PANEL =====================
   createInfoPanel() {
-    const pw = 320;
-    const ph = 260;
-    const px = this.CANVAS_W - pw - 30; // kanan atas
-    const py = 90;
+    const pw = this.isMobile ? 230 : 280;
+    const ph = 210;
+    const px = this.CANVAS_W - pw - 15;
+    const py = this.TOP_BAR_H + 10;
 
     this.infoPanel = this.add.container(px, py);
     this.infoPanel.setAlpha(0);
     this.infoPanel.setVisible(false);
 
-    // BG
-    const bg = this.add.rectangle(pw / 2, ph / 2, pw, ph, 0x16213e);
-    bg.setStrokeStyle(2, 0x3498db);
+    const bg = this.add.rectangle(pw / 2, ph / 2, pw, ph, 0x0f172a, 0.97);
+    bg.setStrokeStyle(2, THEME.colors.blue);
 
-    // Title
-    const title = this.add.text(pw / 2, 25, "📊 GAME INFO", {
-      fontSize: "18px", color: "#3498db", fontStyle: "bold",
+    const title = this.add.text(pw / 2, 20, "📊 GAME INFO", {
+      fontFamily: THEME.fonts.title,
+      fontSize: "12px",
+      color: THEME.hex(THEME.colors.blue),
+      fontStyle: "700",
     }).setOrigin(0.5);
 
-    // Deck counts
-    this.deckText = this.add.text(20, 65, "", {
-      fontSize: "16px", color: "#eee",
-    });
-    this.enemyDeckText = this.add.text(20, 95, "", {
-      fontSize: "16px", color: "#eee",
+    const textStyle = {
+      fontFamily: THEME.fonts.body,
+      fontSize: this.isMobile ? "11px" : "12px",
+      color: THEME.hex(THEME.colors.text),
+    };
+
+    this.deckText = this.add.text(20, 55, "", textStyle);
+    this.enemyDeckText = this.add.text(20, 80, "", textStyle);
+    this.handText = this.add.text(20, 115, "", textStyle);
+    this.enemyHandText = this.add.text(20, 140, "", textStyle);
+    this.diffText = this.add.text(20, 175, "", {
+      ...textStyle, fontSize: "10px",
+      color: THEME.hex(THEME.colors.textDim), fontStyle: "italic",
     });
 
-    // Divider
-    const div = this.add.rectangle(pw / 2, 130, pw - 40, 1, 0x0f3460);
-
-    // Stats
-    this.handText = this.add.text(20, 150, "", {
-      fontSize: "16px", color: "#eee",
-    });
-    this.enemyHandText = this.add.text(20, 180, "", {
-      fontSize: "16px", color: "#eee",
-    });
-    this.diffText = this.add.text(20, 210, "", {
-      fontSize: "14px", color: "#888", fontStyle: "italic",
-    });
-
-    this.infoPanel.add([bg, title, this.deckText, this.enemyDeckText, div,
-                        this.handText, this.enemyHandText, this.diffText]);
-
+    this.infoPanel.add([bg, title, this.deckText, this.enemyDeckText, this.handText, this.enemyHandText, this.diffText]);
     this.updateInfoPanel();
   }
 
@@ -301,10 +320,10 @@ class GameScene extends Phaser.Scene {
     if (!this.deckText) return;
     this.deckText.setText(`🃏 Your Deck: ${this.gameState.deck.length}`);
     this.enemyDeckText.setText(`🃏 Enemy Deck: ${this.gameState.enemyDeck.length}`);
-    this.handText.setText(`✋ Your Hand: ${this.gameState.hand.length}/5`);
+    this.handText.setText(`✋ Hand: ${this.gameState.hand.length}/5`);
     this.enemyHandText.setText(`✋ Enemy Hand: ${this.gameState.enemyHand.length}/5`);
-    const diffLabels = { easy: "Easy", normal: "Normal", hard: "Hard" };
-    this.diffText.setText(`🎯 Difficulty: ${diffLabels[gameSettings.difficulty]}`);
+    const d = { easy: "Easy", normal: "Normal", hard: "Hard" };
+    this.diffText.setText(`🎯 Difficulty: ${d[gameSettings.difficulty]}`);
   }
 
   toggleInfoPanel() {
@@ -313,18 +332,10 @@ class GameScene extends Phaser.Scene {
 
     if (this.gameState.infoPanelOpen) {
       this.infoPanel.setVisible(true);
-      this.tweens.add({
-        targets: this.infoPanel,
-        alpha: 1,
-        y: 90,
-        duration: 200,
-        ease: "Back.easeOut",
-      });
+      this.tweens.add({ targets: this.infoPanel, alpha: 1, duration: 200 });
     } else {
       this.tweens.add({
-        targets: this.infoPanel,
-        alpha: 0,
-        duration: 150,
+        targets: this.infoPanel, alpha: 0, duration: 150,
         onComplete: () => this.infoPanel.setVisible(false),
       });
     }
@@ -336,8 +347,12 @@ class GameScene extends Phaser.Scene {
     const cy = this.CANVAS_H / 2;
 
     const banner = this.add.text(cx, cy, text, {
-      fontSize: "60px", color: "#f0c040", fontStyle: "bold",
-      stroke: "#000", strokeThickness: 8,
+      fontFamily: THEME.fonts.title,
+      fontSize: this.isMobile ? "36px" : "52px",
+      color: THEME.hex(THEME.colors.gold),
+      fontStyle: "900",
+      stroke: "#000000",
+      strokeThickness: 6,
     }).setOrigin(0.5).setAlpha(0).setScale(0.5);
 
     this.tweens.add({
@@ -351,25 +366,26 @@ class GameScene extends Phaser.Scene {
     });
   }
 
-  // ===================== BOARD VISUAL =====================
+  // ===================== BOARD =====================
   createBoardVisual() {
     this.boardContainer.removeAll(true);
+
     for (let row = 0; row < 5; row++) {
       for (let col = 0; col < 5; col++) {
         const x = col * (this.TILE_SIZE + this.TILE_GAP) + this.TILE_SIZE / 2;
         const y = row * (this.TILE_SIZE + this.TILE_GAP) + this.TILE_SIZE / 2;
 
-        const tile = this.add.rectangle(x, y, this.TILE_SIZE, this.TILE_SIZE, 0x1a1a2e);
-        tile.setStrokeStyle(2, 0x0f3460);
+        const tile = this.add.rectangle(x, y, this.TILE_SIZE, this.TILE_SIZE, 0x0f172a);
+        tile.setStrokeStyle(1, 0x1e293b);
         tile.setInteractive({ useHandCursor: true });
         tile.tileRow = row;
         tile.tileCol = col;
 
         tile.on("pointerover", () => {
           if (!this.gameState.isAITurn && !this.gameState.isGameOver && !this.gameState.isAnimating)
-            tile.setStrokeStyle(3, 0xf0c040);
+            tile.setStrokeStyle(2, THEME.colors.gold, 0.6);
         });
-        tile.on("pointerout", () => tile.setStrokeStyle(2, 0x0f3460));
+        tile.on("pointerout", () => tile.setStrokeStyle(1, 0x1e293b));
         tile.on("pointerdown", () => this.onTileClick(row, col));
 
         this.boardContainer.add(tile);
@@ -392,47 +408,51 @@ class GameScene extends Phaser.Scene {
     const y = row * (this.TILE_SIZE + this.TILE_GAP) + this.TILE_SIZE / 2;
 
     const color = occupant.type === "KING"
-      ? (occupant.owner === "player" ? 0x3498db : 0xe74c3c)
-      : (occupant.owner === "player" ? 0x2980b9 : 0xc0392b);
+      ? (occupant.owner === "player" ? THEME.colors.blue : THEME.colors.red)
+      : (occupant.owner === "player" ? THEME.colors.blue : THEME.colors.redDark);
 
-    const radius = occupant.type === "KING" ? 36 : 32;
+    const radius = occupant.type === "KING"
+      ? this.TILE_SIZE * 0.35 : this.TILE_SIZE * 0.32;
+
+    const glow = this.add.circle(x, y, radius + 4, color, 0.2);
     const circle = this.add.circle(x, y, radius, color);
-    circle.setStrokeStyle(3, 0xffffff, 0.6);
-    this.boardContainer.add(circle);
+    circle.setStrokeStyle(2, 0xffffff, 0.5);
 
     let label = occupant.type === "KING" ? "👑" : occupant.name[0];
-    const iconText = this.add.text(x, y - 6, label, {
-      fontSize: occupant.type === "KING" ? "38px" : "28px",
-      fontStyle: "bold", color: "#fff",
+    const iconText = this.add.text(x, y - 4, label, {
+      fontSize: occupant.type === "KING"
+        ? `${Math.round(this.TILE_SIZE * 0.42)}px`
+        : `${Math.round(this.TILE_SIZE * 0.34)}px`,
+      fontStyle: "bold",
+      color: "#ffffff",
     }).setOrigin(0.5);
-    this.boardContainer.add(iconText);
 
-    const barWidth = radius * 1.8;
-    const barY = y + radius + 10;
+    const barWidth = radius * 2;
+    const barHeight = this.isMobile ? 5 : 7;
+    const barY = y + radius + 7;
 
-    const hpBg = this.add.rectangle(x, barY, barWidth, 8, 0x000000);
-    this.boardContainer.add(hpBg);
-
+    const hpBg = this.add.rectangle(x, barY, barWidth, barHeight, 0x000000, 0.75);
     const hpRatio = Math.max(0, occupant.hp / occupant.maxHp);
-    const hpColor = hpRatio > 0.5 ? 0x2ecc71 : hpRatio > 0.25 ? 0xf39c12 : 0xe74c3c;
+    const hpColor = hpRatio > 0.5 ? THEME.colors.green : hpRatio > 0.25 ? THEME.colors.orange : THEME.colors.red;
     const hpBar = this.add.rectangle(
       x - barWidth / 2 + (barWidth * hpRatio) / 2,
-      barY, barWidth * hpRatio, 8, hpColor
+      barY, barWidth * hpRatio, barHeight, hpColor
     );
-    this.boardContainer.add(hpBar);
 
     const hpText = this.add.text(x, barY, `${occupant.hp}`, {
-      fontSize: "12px", color: "#fff", fontStyle: "bold",
+      fontSize: this.isMobile ? "8px" : "10px",
+      color: "#ffffff",
+      fontStyle: "700",
+      fontFamily: THEME.fonts.body,
     }).setOrigin(0.5);
-    this.boardContainer.add(hpText);
+
+    const allObjs = [glow, circle, iconText, hpBg, hpBar, hpText];
 
     if (animate) {
-      [circle, iconText, hpBg, hpBar, hpText].forEach((obj) => obj.setScale(0));
-      this.tweens.add({
-        targets: [circle, iconText, hpBg, hpBar, hpText],
-        scale: 1, duration: 300, ease: "Back.easeOut",
-      });
+      allObjs.forEach((obj) => obj.setScale(0));
+      this.tweens.add({ targets: allObjs, scale: 1, duration: 300, ease: "Back.easeOut" });
     }
+    allObjs.forEach((obj) => this.boardContainer.add(obj));
   }
 
   updateHighlights() {
@@ -449,7 +469,7 @@ class GameScene extends Phaser.Scene {
           for (let c = 0; c < 5; c++) {
             if (this.gameState.board[r][c] === null) {
               const tile = this.getTileAt(r, c);
-              if (tile && tile.overlay) tile.overlay.setFillStyle(0x2ecc71, 0.35);
+              if (tile && tile.overlay) tile.overlay.setFillStyle(THEME.colors.green, 0.35);
             }
           }
         }
@@ -461,9 +481,9 @@ class GameScene extends Phaser.Scene {
               const tile = this.getTileAt(r, c);
               if (tile && tile.overlay) {
                 if (card.targetType === "ANY_UNIT" && occ.type !== "KING") {
-                  tile.overlay.setFillStyle(0xe67e22, 0.4);
+                  tile.overlay.setFillStyle(THEME.colors.orange, 0.4);
                 } else if (card.targetType === "ALLY_UNIT" && occ.owner === "player" && occ.type === "UNIT") {
-                  tile.overlay.setFillStyle(0x2ecc71, 0.5);
+                  tile.overlay.setFillStyle(THEME.colors.green, 0.5);
                 }
               }
             }
@@ -475,7 +495,7 @@ class GameScene extends Phaser.Scene {
     if (this.gameState.selectedUnit) {
       const { row: sr, col: sc } = this.gameState.selectedUnit;
       const selTile = this.getTileAt(sr, sc);
-      if (selTile && selTile.overlay) selTile.overlay.setFillStyle(0xf0c040, 0.4);
+      if (selTile && selTile.overlay) selTile.overlay.setFillStyle(THEME.colors.gold, 0.4);
 
       const attacker = this.gameState.board[sr][sc];
       if (!attacker) return;
@@ -487,10 +507,10 @@ class GameScene extends Phaser.Scene {
           const tile = this.getTileAt(r, c);
 
           if (!occ && dist === 1) {
-            if (tile && tile.overlay) tile.overlay.setFillStyle(0x3498db, 0.35);
+            if (tile && tile.overlay) tile.overlay.setFillStyle(THEME.colors.blue, 0.35);
           }
           if (occ && occ.owner === "enemy" && dist <= attacker.range && dist > 0) {
-            if (tile && tile.overlay) tile.overlay.setFillStyle(0xe74c3c, 0.4);
+            if (tile && tile.overlay) tile.overlay.setFillStyle(THEME.colors.red, 0.4);
           }
         }
       }
@@ -503,16 +523,30 @@ class GameScene extends Phaser.Scene {
     );
   }
 
-  // ===================== HAND VISUAL =====================
+  // ===================== HAND =====================
   createHandVisual() {
     this.handContainer.removeAll(true);
 
-    const cardW = 130;
-    const cardH = 165;
-    const cardGap = 15;
+    // Hitung space available buat hand
+    const hintY = this.BOARD_Y + this.BOARD_H + (this.CANVAS_H - this.BOARD_Y - this.BOARD_H) * 0.05 + 5;
+    const handAreaTop = hintY + 15;
+    const handAreaBottom = this.CANVAS_H - 10;
+    const handAreaH = handAreaBottom - handAreaTop;
 
+    // Card size: lebar max 140, tapi tinggi max = handAreaH - 10
+    let cardW = this.isMobile ? 90 : 120;
+    let cardH = this.isMobile ? 110 : 145;
+
+    // Clamp kalau area hand kekecilan
+    if (cardH > handAreaH - 10) {
+      const ratio = (handAreaH - 10) / cardH;
+      cardH = cardH * ratio;
+      cardW = cardW * ratio;
+    }
+
+    const cardGap = this.isMobile ? 8 : 12;
     const totalWidth = this.gameState.hand.length * (cardW + cardGap) - cardGap;
-    const handY = this.BOARD_Y + 5 * this.TILE_SIZE + 4 * this.TILE_GAP + 130;
+    const handY = handAreaTop + handAreaH / 2;
     const startX = this.CANVAS_W / 2 - totalWidth / 2;
 
     this.gameState.hand.forEach((cardKey, index) => {
@@ -524,44 +558,61 @@ class GameScene extends Phaser.Scene {
       const canAfford = card.cost <= this.gameState.playerAP;
       const isSpell = card.type === "SPELL";
 
-      const bgColor = isSpell ? 0x2a1a3e : 0x16213e;
+      if (isSelected) {
+        const glow = this.add.rectangle(0, 0, cardW + 8, cardH + 8, THEME.colors.green, 0.25);
+        cardContainer.add(glow);
+      }
+
+      const bgColor = isSpell ? 0x1a1030 : 0x0f172a;
       const bg = this.add.rectangle(0, 0, cardW, cardH, bgColor);
-      bg.setStrokeStyle(4, isSelected ? 0x2ecc71 : (isSpell ? 0xa855f7 : 0xf0c040));
+      bg.setStrokeStyle(isSelected ? 3 : 2, isSelected ? THEME.colors.green : (isSpell ? THEME.colors.purple : THEME.colors.gold), 1);
       bg.setInteractive({ useHandCursor: true });
 
-      const badgeColor = isSpell ? 0xa855f7 : 0x3498db;
-      const badge = this.add.rectangle(0, -cardH / 2 + 16, 90, 22, badgeColor);
-      const badgeText = this.add.text(0, -cardH / 2 + 16, isSpell ? "✦ SPELL" : "⚔ UNIT", {
-        fontSize: "12px", color: "#fff", fontStyle: "bold",
+      // Badge
+      const badgeColor = isSpell ? THEME.colors.purple : THEME.colors.blue;
+      const badgeH = Math.max(14, cardH * 0.13);
+      const badgeW = cardW * 0.75;
+      const badgeY = -cardH / 2 + badgeH / 2 + 4;
+      const badge = this.add.rectangle(0, badgeY, badgeW, badgeH, badgeColor);
+      const badgeText = this.add.text(0, badgeY, isSpell ? "✦ SPELL" : "⚔ UNIT", {
+        fontFamily: THEME.fonts.body,
+        fontSize: `${Math.max(8, cardW * 0.08)}px`,
+        color: "#ffffff",
+        fontStyle: "800",
       }).setOrigin(0.5);
 
-      const nameText = this.add.text(0, -cardH / 2 + 42, card.name, {
-        fontSize: "16px", color: "#f0c040", fontStyle: "bold",
+      const nameText = this.add.text(0, -cardH / 2 + badgeH + cardH * 0.13, card.name, {
+        fontFamily: THEME.fonts.body,
+        fontSize: `${Math.max(10, cardW * 0.12)}px`,
+        color: THEME.hex(THEME.colors.gold),
+        fontStyle: "700",
       }).setOrigin(0.5);
 
-      const iconText = this.add.text(0, -5, card.icon, {
-        fontSize: "48px",
+      const iconText = this.add.text(0, 0, card.icon, {
+        fontSize: `${Math.max(24, cardW * 0.4)}px`,
       }).setOrigin(0.5);
 
-      const descText = this.add.text(0, 48, card.desc, {
-        fontSize: "11px", color: "#ccc",
-        wordWrap: { width: cardW - 15 },
+      const descText = this.add.text(0, cardH / 2 - cardH * 0.22, card.desc, {
+        fontFamily: THEME.fonts.body,
+        fontSize: `${Math.max(8, cardW * 0.085)}px`,
+        color: THEME.hex(THEME.colors.textMuted),
+        wordWrap: { width: cardW - 10 },
         align: "center",
       }).setOrigin(0.5);
 
-      const costText = this.add.text(0, cardH / 2 - 15, `Cost ${card.cost}`, {
-        fontSize: "14px", color: canAfford ? "#2ecc71" : "#e74c3c",
-        fontStyle: "bold",
+      const costText = this.add.text(0, cardH / 2 - cardH * 0.08, `◆ ${card.cost}`, {
+        fontFamily: THEME.fonts.body,
+        fontSize: `${Math.max(10, cardW * 0.11)}px`,
+        color: canAfford ? THEME.hex(THEME.colors.green) : THEME.hex(THEME.colors.red),
+        fontStyle: "800",
       }).setOrigin(0.5);
 
       cardContainer.add([bg, badge, badgeText, nameText, iconText, descText, costText]);
 
-      if (!canAfford) cardContainer.setAlpha(0.45);
+      if (!canAfford) cardContainer.setAlpha(0.4);
 
       bg.on("pointerdown", () => this.onCardClick(index));
-      bg.on("pointerover", () => {
-        if (canAfford) cardContainer.setScale(1.08);
-      });
+      bg.on("pointerover", () => { if (canAfford) cardContainer.setScale(1.08); });
       bg.on("pointerout", () => cardContainer.setScale(1.0));
 
       this.handContainer.add(cardContainer);
@@ -638,13 +689,9 @@ class GameScene extends Phaser.Scene {
       if (row < 3 || this.gameState.board[row][col] !== null) return;
 
       this.gameState.board[row][col] = {
-        type: "UNIT",
-        owner: "player",
-        name: card.name,
-        hp: card.hp,
-        maxHp: card.hp,
-        attack: card.attack,
-        range: card.range,
+        type: "UNIT", owner: "player", name: card.name,
+        hp: card.hp, maxHp: card.hp,
+        attack: card.attack, range: card.range,
       };
 
       this.gameState.hand.splice(this.gameState.selectedCard, 1);
@@ -667,10 +714,8 @@ class GameScene extends Phaser.Scene {
     if (card.type === "SPELL") {
       const occupant = this.gameState.board[row][col];
       if (!occupant) return;
-
       if (card.targetType === "ANY_UNIT" && occupant.type === "KING") return;
       if (card.targetType === "ALLY_UNIT" && (occupant.owner !== "player" || occupant.type !== "UNIT")) return;
-
       this.executeSpell(row, col, card);
     }
   }
@@ -682,25 +727,23 @@ class GameScene extends Phaser.Scene {
     this.gameState.isAnimating = true;
     this.playSound("spell", gameSettings.volume * 1.2);
 
-    if (card.effect === "DAMAGE") this.showSpellNotification("🔥", "FIREBALL!", 0xe67e22);
-    else if (card.effect === "HEAL") this.showSpellNotification("💚", "HEAL!", 0x2ecc71);
-    else if (card.effect === "BUFF") this.showSpellNotification("💪", "RAGE!", 0xf39c12);
+    if (card.effect === "DAMAGE") this.showSpellNotification("🔥", "FIREBALL!", THEME.colors.orange);
+    else if (card.effect === "HEAL") this.showSpellNotification("💚", "HEAL!", THEME.colors.green);
+    else if (card.effect === "BUFF") this.showSpellNotification("💪", "RAGE!", THEME.colors.gold);
 
     const tile = this.getTileAt(row, col);
-    if (tile) {
-      this.tweens.add({ targets: tile, alpha: 0.3, yoyo: true, repeat: 2, duration: 100 });
-    }
+    if (tile) this.tweens.add({ targets: tile, alpha: 0.3, yoyo: true, repeat: 2, duration: 100 });
 
     if (card.effect === "DAMAGE") {
       target.hp -= card.value;
-      this.showFloatingText(row, col, `-${card.value}`, "#e67e22");
+      this.showFloatingText(row, col, `-${card.value}`, THEME.colors.orange);
     } else if (card.effect === "HEAL") {
       const healed = Math.min(card.value, target.maxHp - target.hp);
       target.hp += healed;
-      this.showFloatingText(row, col, `+${healed}`, "#2ecc71");
+      this.showFloatingText(row, col, `+${healed}`, THEME.colors.green);
     } else if (card.effect === "BUFF") {
       target.attack += card.value;
-      this.showFloatingText(row, col, `+${card.value} ATK`, "#f39c12");
+      this.showFloatingText(row, col, `+${card.value} ATK`, THEME.colors.gold);
     }
 
     this.gameState.playerAP -= card.cost;
@@ -789,7 +832,7 @@ class GameScene extends Phaser.Scene {
 
     target.hp -= attacker.attack;
     this.gameState.playerAP -= 1;
-    this.showFloatingText(toRow, toCol, `-${attacker.attack}`, "#e74c3c");
+    this.showFloatingText(toRow, toCol, `-${attacker.attack}`, THEME.colors.red);
 
     if (target.type === "KING") {
       if (target.owner === "enemy") this.gameState.enemyKingHP = target.hp;
@@ -821,8 +864,12 @@ class GameScene extends Phaser.Scene {
     const y = this.BOARD_Y + row * (this.TILE_SIZE + this.TILE_GAP) + this.TILE_SIZE / 2;
 
     const txt = this.add.text(x, y, text, {
-      fontSize: "28px", color: color, fontStyle: "bold",
-      stroke: "#000", strokeThickness: 4,
+      fontFamily: THEME.fonts.title,
+      fontSize: this.isMobile ? "18px" : "24px",
+      color: THEME.hex(color),
+      fontStyle: "900",
+      stroke: "#000000",
+      strokeThickness: 4,
     }).setOrigin(0.5).setScale(0);
 
     this.tweens.add({
@@ -936,18 +983,18 @@ class GameScene extends Phaser.Scene {
     this.playSound("spell", gameSettings.volume * 0.7);
 
     if (card.effect === "HEAL") {
-      this.showSpellNotification("💚", "ENEMY HEAL!", 0x2ecc71);
+      this.showSpellNotification("💚", "ENEMY HEAL!", THEME.colors.green);
       const healed = Math.min(card.value, target.maxHp - target.hp);
       target.hp += healed;
-      this.showFloatingText(row, col, `+${healed}`, "#2ecc71");
+      this.showFloatingText(row, col, `+${healed}`, THEME.colors.green);
     } else if (card.effect === "BUFF") {
-      this.showSpellNotification("💪", "ENEMY RAGE!", 0xf39c12);
+      this.showSpellNotification("💪", "ENEMY RAGE!", THEME.colors.gold);
       target.attack += card.value;
-      this.showFloatingText(row, col, `+${card.value} ATK`, "#f39c12");
+      this.showFloatingText(row, col, `+${card.value} ATK`, THEME.colors.gold);
     } else if (card.effect === "DAMAGE") {
-      this.showSpellNotification("🔥", "ENEMY FIREBALL!", 0xe67e22);
+      this.showSpellNotification("🔥", "ENEMY FIREBALL!", THEME.colors.orange);
       target.hp -= card.value;
-      this.showFloatingText(row, col, `-${card.value}`, "#e67e22");
+      this.showFloatingText(row, col, `-${card.value}`, THEME.colors.orange);
       if (target.hp <= 0) this.gameState.board[row][col] = null;
     }
 
@@ -1004,13 +1051,9 @@ class GameScene extends Phaser.Scene {
     const card = CARDS[cardKey];
 
     this.gameState.board[row][col] = {
-      type: "UNIT",
-      owner: "enemy",
-      name: card.name,
-      hp: card.hp,
-      maxHp: card.hp,
-      attack: card.attack,
-      range: card.range,
+      type: "UNIT", owner: "enemy", name: card.name,
+      hp: card.hp, maxHp: card.hp,
+      attack: card.attack, range: card.range,
     };
 
     this.gameState.enemyHand.splice(handIndex, 1);
@@ -1036,7 +1079,7 @@ class GameScene extends Phaser.Scene {
 
     target.hp -= attacker.attack;
     this.gameState.enemyAP -= 1;
-    this.showFloatingText(toRow, toCol, `-${attacker.attack}`, "#e74c3c");
+    this.showFloatingText(toRow, toCol, `-${attacker.attack}`, THEME.colors.red);
 
     if (target.type === "KING") {
       if (target.owner === "player") this.gameState.playerKingHP = target.hp;
@@ -1068,9 +1111,9 @@ class GameScene extends Phaser.Scene {
   // ===================== WIN / LOSS =====================
   checkWinLoss() {
     if (this.gameState.enemyKingHP <= 0) {
-      this.showGameOver("🎉 YOU WIN! 🎉", "King musuh berhasil lu hancurin!");
+      this.showGameOver("🎉 YOU WIN!", "King musuh berhasil lu hancurin!");
     } else if (this.gameState.playerKingHP <= 0) {
-      this.showGameOver("💀 YOU LOSE 💀", "King lu hancur. Coba lagi!");
+      this.showGameOver("💀 YOU LOSE", "King lu hancur. Coba lagi!");
     }
   }
 
@@ -1081,39 +1124,53 @@ class GameScene extends Phaser.Scene {
     const cx = this.CANVAS_W / 2;
     const cy = this.CANVAS_H / 2;
 
-    this.add.rectangle(cx, cy, this.CANVAS_W, this.CANVAS_H, 0x000000, 0.85);
+    this.add.rectangle(cx, cy, this.CANVAS_W * 2, this.CANVAS_H * 2, 0x000000, 0.85);
 
-    const box = this.add.rectangle(cx, cy, 520, 300, 0x16213e);
-    box.setStrokeStyle(4, 0xf0c040);
+    const boxW = this.isMobile ? 300 : 460;
+    const boxH = this.isMobile ? 240 : 280;
+
+    const box = this.add.rectangle(cx, cy, boxW, boxH, 0x0f172a);
+    box.setStrokeStyle(3, THEME.colors.gold);
     box.setScale(0);
-
     this.tweens.add({ targets: box, scale: 1, duration: 400, ease: "Back.easeOut" });
 
-    this.add.text(cx, cy - 90, title, {
-      fontSize: "38px", color: "#f0c040", fontStyle: "bold",
+    this.add.text(cx, cy - (this.isMobile ? 60 : 80), title, {
+      fontFamily: THEME.fonts.title,
+      fontSize: this.isMobile ? "22px" : "30px",
+      color: THEME.hex(THEME.colors.gold),
+      fontStyle: "900",
     }).setOrigin(0.5);
 
     this.add.text(cx, cy, message, {
-      fontSize: "18px", color: "#eee",
-      wordWrap: { width: 460 }, align: "center",
+      fontFamily: THEME.fonts.body,
+      fontSize: this.isMobile ? "13px" : "15px",
+      color: THEME.hex(THEME.colors.text),
+      wordWrap: { width: boxW - 40 },
+      align: "center",
     }).setOrigin(0.5);
 
-    const btnAgain = this.add.rectangle(cx - 110, cy + 100, 180, 55, 0x2ecc71);
+    const btnW = this.isMobile ? 120 : 170;
+    const btnH = this.isMobile ? 42 : 52;
+    const btnGap = 12;
+
+    const btnAgain = this.add.rectangle(cx - (btnW / 2 + btnGap / 2), cy + (this.isMobile ? 75 : 90), btnW, btnH, THEME.colors.green);
     btnAgain.setInteractive({ useHandCursor: true });
-    this.add.text(cx - 110, cy + 100, "MAIN LAGI", {
-      fontSize: "18px", color: "#fff", fontStyle: "bold",
+    this.add.text(cx - (btnW / 2 + btnGap / 2), cy + (this.isMobile ? 75 : 90), "MAIN LAGI", {
+      fontFamily: THEME.fonts.body,
+      fontSize: this.isMobile ? "12px" : "14px",
+      color: "#ffffff",
+      fontStyle: "800",
     }).setOrigin(0.5);
     btnAgain.on("pointerdown", () => this.scene.start("GameScene"));
-    btnAgain.on("pointerover", () => btnAgain.setFillStyle(0x27ae60));
-    btnAgain.on("pointerout", () => btnAgain.setFillStyle(0x2ecc71));
 
-    const btnMenu = this.add.rectangle(cx + 110, cy + 100, 180, 55, 0xf0c040);
+    const btnMenu = this.add.rectangle(cx + (btnW / 2 + btnGap / 2), cy + (this.isMobile ? 75 : 90), btnW, btnH, THEME.colors.gold);
     btnMenu.setInteractive({ useHandCursor: true });
-    this.add.text(cx + 110, cy + 100, "MAIN MENU", {
-      fontSize: "18px", color: "#1a1a2e", fontStyle: "bold",
+    this.add.text(cx + (btnW / 2 + btnGap / 2), cy + (this.isMobile ? 75 : 90), "MENU", {
+      fontFamily: THEME.fonts.body,
+      fontSize: this.isMobile ? "12px" : "14px",
+      color: "#0f172a",
+      fontStyle: "800",
     }).setOrigin(0.5);
     btnMenu.on("pointerdown", () => this.scene.start("MenuScene"));
-    btnMenu.on("pointerover", () => btnMenu.setFillStyle(0xffd700));
-    btnMenu.on("pointerout", () => btnMenu.setFillStyle(0xf0c040));
   }
 }
