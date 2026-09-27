@@ -5,6 +5,7 @@
   padding: 0;
   background: radial-gradient(ellipse at center, #0a0e1a 0%, #050810 100%);
   height: 100vh;
+  height: 100dvh; /* dynamic viewport height — handle HP URL bar */
   overflow: hidden;
 }
 
@@ -17,7 +18,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 16px;
+  padding: 6px 12px;
   background: rgba(15, 23, 42, 0.9);
   border-bottom: 1px solid var(--border);
   backdrop-filter: blur(10px);
@@ -27,7 +28,7 @@
 
 .topbar-left {
   display: flex;
-  gap: 20px;
+  gap: 16px;
   align-items: center;
 }
 
@@ -35,11 +36,11 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
+  gap: 1px;
 }
 
 .stat-label {
-  font-size: 0.6rem;
+  font-size: 0.55rem;
   color: var(--text-dim);
   letter-spacing: 1px;
   font-weight: 700;
@@ -47,7 +48,7 @@
 
 .stat-value {
   font-family: 'Orbitron', sans-serif;
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: var(--gold);
   line-height: 1;
@@ -58,18 +59,18 @@
 
 .topbar-right {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
 }
 
 .btn-icon-only {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
   background: var(--blue);
   color: white;
   border: none;
-  font-size: 1rem;
+  font-size: 0.95rem;
   cursor: pointer;
   transition: all 0.2s;
   display: flex;
@@ -79,16 +80,15 @@
 
 .btn-icon-only:hover {
   background: var(--blue-dark);
-  transform: translateY(-1px);
 }
 
-/* ===== BOARD WRAPPER ===== */
+/* ===== BOARD WRAPPER — FLEX SHRINK ===== */
 .board-wrapper {
-  flex: 1;
+  flex: 1 1 auto;
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 8px;
+  padding: 6px;
   min-height: 0;
   min-width: 0;
   overflow: hidden;
@@ -98,16 +98,19 @@
 #phaser-board {
   border-radius: var(--radius);
   overflow: hidden;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 6px 30px rgba(0, 0, 0, 0.5);
   background: #0a0e1a;
-  width: min(424px, calc(100vh - 340px));
-  height: min(424px, calc(100vh - 340px));
+  /* Auto fit: min dari width, height area */
   max-width: 100%;
+  max-height: 100%;
   aspect-ratio: 1 / 1;
   display: flex;
   justify-content: center;
   align-items: center;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  /* Default 424, tapi bakal shrink kalau gak muat */
+  width: 424px;
+  height: 424px;
 }
 
 #phaser-board canvas {
@@ -120,9 +123,9 @@
 /* ===== HINT ===== */
 .game-hint {
   text-align: center;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--text-muted);
-  padding: 2px 10px 6px;
+  padding: 2px 10px 4px;
   font-style: italic;
   flex-shrink: 0;
   transition: color 0.2s;
@@ -130,35 +133,35 @@
 
 /* ===== HAND ===== */
 .hand-wrapper {
-  padding: 4px 16px 6px;
+  padding: 4px 10px 4px;
   display: flex;
   justify-content: center;
   flex-shrink: 0;
-  min-height: 130px;
+  min-height: 100px;
   align-items: center;
 }
 
 .hand {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   justify-content: center;
   align-items: flex-end;
   max-width: 100%;
   overflow-x: auto;
-  padding: 5px;
+  padding: 4px;
 }
 
 /* ===== END TURN ===== */
 .btn-end-turn-bottom {
-  padding: 12px 22px;
-  margin: 0 16px 12px;
+  padding: 10px 20px;
+  margin: 0 10px 8px;
   background: linear-gradient(135deg, #fbbf24, #d97706);
   color: #0f172a;
   border: none;
-  border-radius: 12px;
+  border-radius: 10px;
   font-family: 'Inter', sans-serif;
   font-weight: 900;
-  font-size: 1rem;
+  font-size: 0.9rem;
   letter-spacing: 1px;
   cursor: pointer;
   transition: all 0.2s;
@@ -166,9 +169,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
   flex-shrink: 0;
-  width: calc(100% - 32px);
+  width: calc(100% - 20px);
   max-width: 480px;
   align-self: center;
 }
@@ -177,10 +180,6 @@
   transform: translateY(-2px);
   box-shadow: 0 6px 25px rgba(251, 191, 36, 0.6);
   filter: brightness(1.1);
-}
-
-.btn-end-turn-bottom:active:not(:disabled) {
-  transform: translateY(0);
 }
 
 .btn-end-turn-bottom:disabled {
@@ -200,12 +199,12 @@
 
 /* ===== CARD ===== */
 .game-card {
-  width: 110px;
-  height: 150px;
+  width: 100px;
+  height: 140px;
   background: #0f172a;
   border: 2px solid var(--gold);
   border-radius: 10px;
-  padding: 8px;
+  padding: 6px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -231,7 +230,7 @@
 }
 
 .game-card:hover {
-  transform: translateY(-8px);
+  transform: translateY(-6px);
   box-shadow: 0 12px 25px rgba(251, 191, 36, 0.3);
 }
 
@@ -242,7 +241,7 @@
 .game-card.selected {
   border-color: var(--green);
   box-shadow: 0 0 20px var(--green), 0 8px 20px rgba(0, 0, 0, 0.5);
-  transform: translateY(-10px);
+  transform: translateY(-8px);
 }
 
 .game-card.disabled {
@@ -253,26 +252,23 @@
 
 .game-card.disabled:hover {
   transform: none;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
 }
 
 .card-badge {
-  font-size: 0.55rem;
+  font-size: 0.5rem;
   font-weight: 800;
   letter-spacing: 0.5px;
   padding: 2px 8px;
   border-radius: 4px;
   background: var(--blue);
   color: white;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
-.game-card.spell .card-badge {
-  background: var(--purple);
-}
+.game-card.spell .card-badge { background: var(--purple); }
 
 .card-name {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 800;
   color: var(--gold);
   text-align: center;
@@ -281,13 +277,13 @@
 }
 
 .card-icon {
-  font-size: 2rem;
+  font-size: 1.7rem;
   line-height: 1;
-  margin: 4px 0;
+  margin: 2px 0;
 }
 
 .card-desc {
-  font-size: 0.6rem;
+  font-size: 0.55rem;
   color: var(--text-muted);
   text-align: center;
   line-height: 1.2;
@@ -298,30 +294,29 @@
 }
 
 .card-cost {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 800;
   color: var(--green);
   margin-top: 2px;
 }
 
-.game-card.disabled .card-cost {
-  color: var(--red);
-}
+.game-card.disabled .card-cost { color: var(--red); }
 
 /* ===== INFO PANEL ===== */
 .info-panel {
   position: fixed;
-  top: 70px;
-  right: 16px;
-  width: 240px;
+  top: 60px;
+  right: 12px;
+  width: 220px;
   background: rgba(15, 23, 42, 0.98);
   border: 2px solid var(--blue);
   border-radius: var(--radius);
-  padding: 18px;
+  padding: 14px;
   z-index: 50;
   backdrop-filter: blur(10px);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
   animation: slideIn 0.3s ease-out;
+  font-size: 0.8rem;
 }
 
 @keyframes slideIn {
@@ -331,27 +326,27 @@
 
 .info-panel h3 {
   font-family: 'Orbitron', sans-serif;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--blue);
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   letter-spacing: 1px;
 }
 
 .info-row {
   display: flex;
   justify-content: space-between;
-  font-size: 0.8rem;
-  padding: 5px 0;
+  font-size: 0.75rem;
+  padding: 4px 0;
   color: var(--text);
 }
 
 .info-row b { color: var(--gold); font-weight: 800; }
-.info-row.dim { color: var(--text-dim); font-size: 0.75rem; font-style: italic; }
+.info-row.dim { color: var(--text-dim); font-size: 0.7rem; font-style: italic; }
 
 .info-divider {
   height: 1px;
   background: var(--border);
-  margin: 8px 0;
+  margin: 6px 0;
 }
 
 /* ===== TURN BANNER ===== */
@@ -361,7 +356,7 @@
   left: 50%;
   transform: translate(-50%, -50%) scale(0.5);
   font-family: 'Orbitron', sans-serif;
-  font-size: clamp(2rem, 6vw, 4rem);
+  font-size: clamp(1.5rem, 5vw, 3.5rem);
   font-weight: 900;
   color: var(--gold);
   text-shadow:
@@ -371,7 +366,7 @@
   pointer-events: none;
   z-index: 200;
   opacity: 0;
-  letter-spacing: 4px;
+  letter-spacing: 3px;
 }
 
 .turn-banner.show {
@@ -389,16 +384,16 @@
 /* ===== SPELL NOTIF ===== */
 .spell-notif {
   position: fixed;
-  top: 30%;
+  top: 25%;
   left: 50%;
   transform: translate(-50%, -50%) scale(0);
   background: rgba(15, 23, 42, 0.98);
   border: 3px solid var(--orange);
-  border-radius: 14px;
-  padding: 16px 32px;
+  border-radius: 12px;
+  padding: 12px 24px;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   z-index: 150;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
   pointer-events: none;
@@ -416,11 +411,11 @@
   100% { transform: translate(-50%, -70%) scale(1); opacity: 0; }
 }
 
-.spell-notif-icon { font-size: 2.2rem; }
+.spell-notif-icon { font-size: 1.8rem; }
 
 .spell-notif-text {
   font-family: 'Orbitron', sans-serif;
-  font-size: 1.4rem;
+  font-size: 1.1rem;
   font-weight: 900;
   letter-spacing: 2px;
 }
@@ -430,9 +425,9 @@
   background: var(--bg-panel);
   border: 3px solid var(--gold);
   border-radius: var(--radius-lg);
-  padding: 40px;
+  padding: 30px;
   text-align: center;
-  max-width: 480px;
+  max-width: 420px;
   width: 90%;
   animation: popIn 0.4s ease-out;
 }
@@ -444,37 +439,36 @@
 
 .game-over-title {
   font-family: 'Orbitron', sans-serif;
-  font-size: 2.2rem;
+  font-size: 1.8rem;
   color: var(--gold);
-  margin-bottom: 15px;
+  margin-bottom: 12px;
   letter-spacing: 3px;
   text-shadow: 0 0 20px rgba(251, 191, 36, 0.5);
 }
 
 .game-over-message {
   color: var(--text-muted);
-  font-size: 1rem;
-  margin-bottom: 30px;
+  font-size: 0.9rem;
+  margin-bottom: 24px;
   line-height: 1.5;
 }
 
 .game-over-buttons {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   justify-content: center;
 }
 
 .btn-restart,
 .btn-menu {
-  padding: 14px 28px;
+  padding: 12px 24px;
   border: none;
   border-radius: 10px;
   font-family: 'Inter', sans-serif;
   font-weight: 800;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.2s;
-  letter-spacing: 0.5px;
 }
 
 .btn-restart {
@@ -483,51 +477,57 @@
   box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4);
 }
 
-.btn-restart:hover { transform: translateY(-2px); filter: brightness(1.1); }
-
 .btn-menu {
   background: var(--gold);
   color: var(--bg-panel);
   box-shadow: 0 4px 15px rgba(251, 191, 36, 0.4);
 }
 
-.btn-menu:hover { transform: translateY(-2px); filter: brightness(1.1); }
-
-/* ===== RESPONSIVE ===== */
-@media (max-width: 900px) {
-  .game-topbar { padding: 6px 12px; }
-  .topbar-left { gap: 12px; }
-  .stat-value { font-size: 0.9rem; }
+/* ===== HP LANDSCAPE ===== */
+@media (max-height: 500px) {
+  .game-topbar { padding: 4px 10px; }
   .stat-label { font-size: 0.5rem; }
-  .btn-icon-only { width: 34px; height: 34px; }
+  .stat-value { font-size: 0.85rem; }
+  .btn-icon-only { width: 30px; height: 30px; font-size: 0.85rem; }
 
-  .game-card { width: 90px; height: 125px; padding: 6px; }
-  .card-name { font-size: 0.65rem; }
-  .card-icon { font-size: 1.6rem; }
-  .card-desc { font-size: 0.55rem; }
-  .card-cost { font-size: 0.65rem; }
+  .game-hint { display: none; }
 
-  .hand-wrapper { min-height: 115px; padding: 4px 10px; }
+  .hand-wrapper { min-height: 80px; padding: 2px 8px; }
+  .hand { gap: 6px; }
+  .game-card { width: 75px; height: 100px; padding: 4px; }
+  .card-badge { font-size: 0.4rem; padding: 1px 5px; }
+  .card-name { font-size: 0.6rem; }
+  .card-icon { font-size: 1.3rem; }
+  .card-desc { display: none; }
+  .card-cost { font-size: 0.6rem; }
 
   .btn-end-turn-bottom {
-    font-size: 0.9rem;
-    padding: 10px 18px;
-    margin: 0 10px 10px;
-    width: calc(100% - 20px);
+    padding: 8px 16px;
+    font-size: 0.8rem;
+    margin: 0 8px 6px;
+    width: calc(100% - 16px);
   }
 
-  .info-panel { width: 200px; top: 60px; right: 10px; padding: 14px; }
-
   #phaser-board {
-    width: min(424px, calc(100vh - 300px));
-    height: min(424px, calc(100vh - 300px));
+    width: auto;
+    height: auto;
+    max-width: min(100%, 60vh);
+    max-height: 60vh;
   }
 }
 
-@media (max-height: 600px) {
-  .game-hint { display: none; }
-  .hand-wrapper { min-height: 100px; }
+/* ===== HP PORTRAIT ===== */
+@media (max-width: 500px) and (orientation: portrait) {
+  .stat-label { font-size: 0.5rem; }
+  .stat-value { font-size: 0.85rem; }
+  .topbar-left { gap: 10px; }
+
   .game-card { width: 80px; height: 110px; }
   .card-icon { font-size: 1.4rem; }
-  .card-desc { display: none; }
+  .card-desc { font-size: 0.5rem; }
+
+  .btn-end-turn-bottom {
+    font-size: 0.85rem;
+    padding: 10px 16px;
+  }
 }

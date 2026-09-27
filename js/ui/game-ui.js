@@ -64,8 +64,6 @@ function renderHandUI() {
 
 // ===== KLIK KARTU =====
 function onCardClick(index) {
-  if (window.unlockAudio) window.unlockAudio();
-
   if (gameState.isAITurn || gameState.isGameOver || gameState.isAnimating) return;
 
   playClickSound();
@@ -84,25 +82,20 @@ function onCardClick(index) {
 
 // ===== KLIK TILE =====
 window.onBoardTileClick = function (row, col) {
-  if (window.unlockAudio) window.unlockAudio();
-
   if (gameState.isAITurn || gameState.isGameOver || gameState.isAnimating) return;
 
   const occupant = gameState.board[row][col];
 
-  // Mode 1: kartu ke-select
   if (gameState.selectedCard !== null) {
     handleCardPlay(row, col);
     return;
   }
 
-  // Mode 2: unit ke-select
   if (gameState.selectedUnit) {
     handleUnitAction(row, col);
     return;
   }
 
-  // Mode 3: klik unit player
   if (occupant && occupant.owner === "player" && occupant.type === "UNIT") {
     playClickSound();
     gameState.selectedUnit = { row, col };
@@ -306,8 +299,6 @@ function executeAttack(fromRow, fromCol, toRow, toCol) {
 
 // ===== END TURN =====
 function onEndTurnClick() {
-  if (window.unlockAudio) window.unlockAudio();
-
   if (gameState.isAITurn || gameState.isGameOver || gameState.isAnimating) return;
 
   playClickSound();
@@ -593,56 +584,12 @@ function updateInfoPanelUI() {
   document.getElementById("info-diff").textContent = diffLabels[gameSettings.difficulty];
 }
 
-// ===== SOUNDS =====
-function playClickSound() {
-  if (!gameSettings.soundEnabled) return;
-  try {
-    if (game && game.sound) {
-      const s = game.sound.get("click");
-      if (s) game.sound.play("click", { volume: gameSettings.volume });
-    }
-  } catch (e) {}
-}
-
-function playAttackSound() {
-  if (!gameSettings.soundEnabled) return;
-  try {
-    if (game && game.sound) {
-      const s = game.sound.get("attack");
-      if (s) game.sound.play("attack", { volume: gameSettings.volume });
-    }
-  } catch (e) {}
-}
-
-function playSpellSound() {
-  if (!gameSettings.soundEnabled) return;
-  try {
-    if (game && game.sound) {
-      const s = game.sound.get("spell");
-      if (s) game.sound.play("spell", { volume: gameSettings.volume });
-    }
-  } catch (e) {}
-}
-
-function playDeathSound() {
-  if (!gameSettings.soundEnabled) return;
-  try {
-    if (game && game.sound) {
-      const s = game.sound.get("death");
-      if (s) game.sound.play("death", { volume: gameSettings.volume });
-    }
-  } catch (e) {}
-}
-
-function playTurnSound() {
-  if (!gameSettings.soundEnabled) return;
-  try {
-    if (game && game.sound) {
-      const s = game.sound.get("turn");
-      if (s) game.sound.play("turn", { volume: gameSettings.volume });
-    }
-  } catch (e) {}
-}
+// ===== SOUNDS — pakai AudioManager (HTML5 audio) =====
+function playClickSound()  { AudioManager.play("click"); }
+function playAttackSound() { AudioManager.play("attack"); }
+function playSpellSound()  { AudioManager.play("spell"); }
+function playDeathSound()  { AudioManager.play("death"); }
+function playTurnSound()   { AudioManager.play("turn"); }
 
 // ===== BANNERS =====
 function showTurnBanner(text) {
