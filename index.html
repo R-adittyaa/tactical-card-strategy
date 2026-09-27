@@ -3,30 +3,172 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#0a0e1a">
+  <meta name="theme-color" content="#050810">
   <title>Exercist — Tactical Card Strategy</title>
 
-  <!-- Font -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
 
-  <!-- CSS -->
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/menu.css">
+  <link rel="stylesheet" href="css/game.css">
 
-  <!-- Phaser -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
 </head>
 <body>
-  <div id="game-container"></div>
 
+  <!-- ===== MENU SCREEN ===== -->
+  <div id="menu-screen" class="screen active">
+    <div class="bg-particles"></div>
+    <div class="menu-content">
+      <h1 class="game-title">EXERCIST</h1>
+      <p class="game-subtitle">⚔ &nbsp;TACTICAL CARD STRATEGY&nbsp; ⚔</p>
+      <div class="menu-buttons">
+        <button class="btn btn-play" data-action="play">
+          <span class="btn-icon">▶</span>
+          <span class="btn-label">PLAY</span>
+        </button>
+        <button class="btn btn-howto" data-action="howto">
+          <span class="btn-icon">📖</span>
+          <span class="btn-label">HOW TO PLAY</span>
+        </button>
+        <button class="btn btn-settings" data-action="settings">
+          <span class="btn-icon">⚙</span>
+          <span class="btn-label">SETTINGS</span>
+        </button>
+      </div>
+      <p class="menu-footer">v2.0 · Dibuat dengan Phaser.js</p>
+    </div>
+  </div>
+
+  <!-- ===== HOW TO PLAY ===== -->
+  <div id="howto-screen" class="screen">
+    <div class="screen-header">
+      <h2>📖 HOW TO PLAY</h2>
+      <button class="btn-back" data-action="back-to-menu">← BACK</button>
+    </div>
+    <div class="howto-content">
+      <div class="howto-item">
+        <div class="howto-icon">🎯</div>
+        <div class="howto-text"><h3>TUJUAN</h3><p>Hancurin King musuh (HP 20) sebelum King lu dihancurin.</p></div>
+      </div>
+      <div class="howto-item">
+        <div class="howto-icon">⚡</div>
+        <div class="howto-text"><h3>ACTION POINTS</h3><p>AP nambah tiap turn (Turn 1 = 3, Turn 2 = 4, dst, max 10).</p></div>
+      </div>
+      <div class="howto-item">
+        <div class="howto-icon">🃏</div>
+        <div class="howto-text"><h3>KARTU</h3><p><b>⚔ UNIT</b> = prajurit (ada HP, ATK, range).<br><b>✦ SPELL</b> = sihir instant dari jauh.</p></div>
+      </div>
+      <div class="howto-item">
+        <div class="howto-icon">🎮</div>
+        <div class="howto-text"><h3>CARA MAIN</h3><p>Klik kartu → klik tile nyala → eksekusi. Klik END TURN kalau selesai.</p></div>
+      </div>
+      <div class="howto-item">
+        <div class="howto-icon">🏃</div>
+        <div class="howto-text"><h3>UNIT</h3><p>Klik unit → <b style="color:#38bdf8">biru</b> = gerak, <b style="color:#ef4444">merah</b> = nyerang.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SETTINGS ===== -->
+  <div id="settings-screen" class="screen">
+    <div class="screen-header">
+      <h2>⚙ SETTINGS</h2>
+      <button class="btn-back" data-action="back-to-menu">← BACK</button>
+    </div>
+    <div class="settings-content">
+      <div class="setting-row">
+        <label>🔊 Sound</label>
+        <button id="setting-sound" class="toggle-btn">ON</button>
+      </div>
+      <div class="setting-row">
+        <label>🎚 Volume</label>
+        <div class="slider-wrap">
+          <input type="range" id="setting-volume" min="0" max="100" value="50">
+          <span id="volume-value">50%</span>
+        </div>
+      </div>
+      <div class="setting-row">
+        <label>🎯 Difficulty</label>
+        <div class="difficulty-group">
+          <button class="diff-btn" data-diff="easy">EASY</button>
+          <button class="diff-btn active" data-diff="normal">NORMAL</button>
+          <button class="diff-btn" data-diff="hard">HARD</button>
+        </div>
+      </div>
+      <p id="difficulty-desc" class="difficulty-desc">Balance. King HP 20. Recommended.</p>
+    </div>
+  </div>
+
+  <!-- ===== GAME SCREEN ===== -->
+  <div id="game-screen" class="screen">
+    <!-- Top Bar -->
+    <div class="game-topbar">
+      <div class="topbar-left">
+        <div class="stat-item">
+          <span class="stat-label">TURN</span>
+          <span class="stat-value" id="stat-turn">1</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">AP</span>
+          <span class="stat-value green" id="stat-ap">3</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">👑 YOU</span>
+          <span class="stat-value red" id="stat-player-hp">20</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">👑 ENEMY</span>
+          <span class="stat-value red" id="stat-enemy-hp">20</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn-icon-only" id="btn-info" title="Info">ℹ</button>
+      </div>
+    </div>
+
+    <!-- Board (canvas Phaser di sini) -->
+    <div class="board-wrapper">
+      <div id="phaser-board"></div>
+    </div>
+
+    <!-- Hint -->
+    <p class="game-hint" id="game-hint">💡 Klik kartu atau unit</p>
+
+    <!-- Hand -->
+    <div class="hand-wrapper">
+      <div id="hand" class="hand"></div>
+    </div>
+
+    <!-- End Turn -->
+    <button class="btn-end-turn-bottom" id="btn-end-turn">
+      END TURN <span class="arrow">→</span>
+    </button>
+
+    <!-- Info Panel (floating) -->
+    <div id="info-panel" class="info-panel hidden">
+      <h3>📊 GAME INFO</h3>
+      <div class="info-row"><span>🃏 Your Deck</span><b id="info-deck">15</b></div>
+      <div class="info-row"><span>🃏 Enemy Deck</span><b id="info-enemy-deck">15</b></div>
+      <div class="info-row"><span>✋ Your Hand</span><b id="info-hand">3/5</b></div>
+      <div class="info-row"><span>✋ Enemy Hand</span><b id="info-enemy-hand">0/5</b></div>
+      <div class="info-divider"></div>
+      <div class="info-row dim"><span>🎯 Difficulty</span><b id="info-diff">Normal</b></div>
+    </div>
+
+    <!-- Overlay (game over) -->
+    <div id="overlay" class="overlay hidden"></div>
+  </div>
+
+  <script src="js/core/settings.js"></script>
   <script src="js/data/cards.js"></script>
-  <script src="js/ui/theme.js"></script>
+  <script src="js/core/game-state.js"></script>
   <script src="js/scenes/BootScene.js"></script>
-  <script src="js/scenes/MenuScene.js"></script>
-  <script src="js/scenes/HowToPlayScene.js"></script>
-  <script src="js/scenes/SettingsScene.js"></script>
-  <script src="js/scenes/GameScene.js"></script>
+  <script src="js/scenes/BoardScene.js"></script>
+  <script src="js/ui/menu.js"></script>
+  <script src="js/ui/game-ui.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

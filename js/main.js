@@ -1,30 +1,67 @@
-const gameSettings = {
-  soundEnabled: true,
-  volume: 0.5,
-  difficulty: "normal",
-};
+// ===== PHASER INIT =====
+let game;
 
-const config = {
-  type: Phaser.AUTO,
-  parent: "game-container",
-  backgroundColor: "#050810",
-  scale: {
-    mode: Phaser.Scale.RESIZE,      // ← RESPONSIVE, ikut ukuran layar
-    autoCenter: Phaser.Scale.CENTER_BOTH,
-    width: "100%",
-    height: "100%",
-  },
-  render: {
-    antialias: true,
-    roundPixels: false,
-    pixelArt: false,
-  },
-  scene: [BootScene, MenuScene, HowToPlayScene, SettingsScene, GameScene],
-};
+window.addEventListener("load", () => {
+  console.log("Window loaded, initializing Phaser...");
 
-const game = new Phaser.Game(config);
+  const boardEl = document.getElementById("phaser-board");
+  if (!boardEl) {
+    console.error("ERROR: #phaser-board tidak ditemukan!");
+    return;
+  }
 
-// Handle resize (buat HP yang rotate)
-window.addEventListener("resize", () => {
-  game.scale.resize(window.innerWidth, window.innerHeight);
+  game = new Phaser.Game({
+    type: Phaser.AUTO,
+    parent: "phaser-board",
+    width: 424,
+    height: 424,
+    backgroundColor: "#0a0e1a",
+    scene: [BootScene, BoardScene],
+    scale: {
+      mode: Phaser.Scale.NONE,
+      autoCenter: Phaser.Scale.NO_CENTER,
+      width: 424,
+      height: 424,
+    },
+    audio: {
+      disableWebAudio: false,
+      noAudio: false,
+    },
+  });
+
+  console.log("Phaser initialized:", game);
+
+  // ===== UNLOCK AUDIO =====
+  // Resume AudioContext. Dipanggil DARI DALAM onclick event.
+  window.unlockAudio = function () {
+    try {
+      const ctx = game.sound && game.sound.context;
+      if (!ctx) return;
+      if (ctx.state === "suspended") {
+        ctx.resume().then(() => {
+          console.log("✅ AudioContext resumed:", ctx.state);
+        });
+      }
+    } catch (e) {
+      console.warn("unlock error:", e);
+    }
+  };
+
+  initMenu();
+
+  // Pasang unlock ke SEMUA button & body, tapi langsung di onclick
+  // biar browser percaya itu "user gesture"
+  const attachUnlock = () => {
+    document.querySelectorAll("button, .btn, .game-card, .btn-end-turn-bottom, .diff-btn, .toggle-btn")
+      .forEach((el) => {
+        el.addEventListener("click", window.unlockAudio, { capture: true });
+      });
+  };
+
+  // Attach sekarang & tiap kali ada button baru (game cards)
+  attachUnlock();
+  setInterval(attachUnlock, 1000); // refresh tiap detik (buat game cards dinamis)
+
+  // Fallback: klik body juga
+  document.body.addEventListener("click", window.unlockAudio, { capture: true });
 });
