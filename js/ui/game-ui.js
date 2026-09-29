@@ -1,4 +1,4 @@
-// ===== SAFETY: AUTO-RESET isAnimating kalau nyangkut =====
+// ===== SAFETY: AUTO-RESET isAnimating =====
 let _animSafetyTimer = null;
 function _startAnimSafety() {
   if (_animSafetyTimer) clearTimeout(_animSafetyTimer);
@@ -19,6 +19,32 @@ function _startAnimSafety() {
       if (window.boardScene) window.boardScene.refresh();
     }
   }, 6000);
+}
+
+// ===== HERO EFFECTS =====
+function getPlayerHeroEffect() {
+  return gameState.playerHero;
+}
+function getEnemyHeroEffect() {
+  return gameState.enemyHero;
+}
+
+// AP extra dari hero Merchant
+function getHeroAPBonus(hero) {
+  if (hero === "merchant") return 1;
+  return 0;
+}
+
+// Damage extra dari hero Archmage
+function getHeroSpellBonus(hero) {
+  if (hero === "archmage") return 1;
+  return 0;
+}
+
+// ATK extra dari hero Warlord
+function getHeroAtkBonus(hero) {
+  if (hero === "warlord") return 1;
+  return 0;
 }
 
 // ===== MATCH TIMER =====
@@ -59,6 +85,77 @@ function _updatePhaseIndicator() {
   }
 }
 
+// ===== HERO BADGE UI =====
+function updateHeroBadge() {
+  const badge = document.getElementById("hero-badge");
+  if (!badge) return;
+  const heroId = gameState.playerHero;
+  const hero = HEROES[heroId];
+  if (!hero) return;
+
+  badge.innerHTML = `
+    <span class="hero-icon">${hero.icon}</span>
+    <span class="hero-name">${hero.name}</span>
+  `;
+  badge.title = hero.desc;
+  badge.style.borderColor = hero.color;
+  badge.style.color = hero.color;
+}
+
+// ===== BONUS KELIPATAN 10 =====
+function checkTurnMilestone() {
+  const turn = gameState.turn;
+
+  if (turn === 10) {
+    gameState.playerAP += 5;
+    for (let i = 0; i < 2; i++) {
+      if (gameState.deck.length === 0) {
+        if (gameState.discard.length === 0) break;
+        gameState.deck = [...gameState.discard];
+        gameState.discard = [];
+        shuffleArray(gameState.deck);
+      }
+      const card = gameState.deck.pop();
+      if (card) gameState.hand.push(card);
+    }
+    while (gameState.hand.length > 4) {
+      const removed = gameState.hand.shift();
+      gameState.discard.push(removed);
+    }
+    showTurnBanner("🎁 AP SURGE!");
+    showSpellNotification("🎁", "+5 AP & +2 CARDS!", "#fbbf24");
+    playTurnSound();
+  }
+
+  if (turn === 20) {
+    gameState.playerAP += 10;
+    const playerUnits = getUnitsByOwner("player");
+    for (const pu of playerUnits) {
+      pu.unit.attack += 1;
+      if (window.boardScene) {
+        window.boardScene.showFloatingText(pu.row, pu.col, "+1 ATK", "#fbbf24");
+      }
+    }
+    showTurnBanner("🎁 RAGE OF AGES!");
+    showSpellNotification("🎁", "+10 AP & +1 ATK ALL!", "#fbbf24");
+    playTurnSound();
+  }
+
+  if (turn === 30) {
+    gameState.playerAP += 15;
+    const playerUnits = getUnitsByOwner("player");
+    for (const pu of playerUnits) {
+      pu.unit.hp = pu.unit.maxHp;
+      if (window.boardScene) {
+        window.boardScene.showFloatingText(pu.row, pu.col, "FULL HP", "#5db85d");
+      }
+    }
+    showTurnBanner("🎁 DIVINE BLESSING!");
+    showSpellNotification("🎁", "+15 AP & FULL HEAL!", "#5db85d");
+    playTurnSound();
+  }
+}
+
 // ===== INIT GAME UI =====
 function initGameUI() {
   initGameState();
@@ -74,6 +171,10 @@ function initGameUI() {
   updateTopBarUI();
   renderHandUI();
   updateHintUI();
+  updateHeroBadge();
+
+  // Tampilkan hero draw animation
+  showHeroDrawAnimation();
 
   const endBtn = document.getElementById("btn-end-turn");
   endBtn.disabled = false;
@@ -97,6 +198,178 @@ function initGameUI() {
 
   _startMatchTimer();
   _updatePhaseIndicator();
+}
+
+  // ===== HERO DRAW ANIMATION — GACHA STYLE =====
+function showHeroDrawAnimation() {
+  const overlay = document.getElementById("hero-draw-overlay");
+  if (!overlay) return;
+
+  const playerHeroKey = gameState.playerHero;
+  const enemyHeroKey = gameState.enemyHero;
+  const playerHero = HEROES[playerHeroKey];
+  const enemyHero = HEROES[enemyHeroKey];
+  if (!playerHero || !enemyHero) return;
+
+  const playerSlot = document.getElementById("hero-slot-player");
+  const playerCard = document.getElementById("hero-slot-player-card");
+  const enemySlot = document.getElementById("hero-slot-enemy");
+  const enemyCard = document.getElementById("hero-slot-enemy-card");
+  const vsEl = document.getElementById("hero-vs");
+  const skipBtn = document.getElementById("hero-draw-skip");
+
+  // Reset classes
+  playerSlot.classList.remove("slide-left");
+  enemySlot.classList.remove("slide-right");
+  playerCard.classList.remove("flash", "warlord", "archmage", "merchant");
+  enemyCard.classList.remove("flash", "warlord", "archmage", "merchant");
+  vsEl.classList.remove("show");
+  overlay.classList.remove("hidden", "closing");
+
+  // Skip handling
+  let skipped = false;
+  const skipHandler = () => {
+    skipped = true;
+    finishGacha();
+  };
+  skipBtn.onclick = skipHandler;
+  skipBtn.style.display = "block";
+
+  // Play sound
+  playTurnSound();
+
+  // ===== ROLL FUNCTION =====
+  // Roll hero names cepet, melambat, berhenti di target
+  function rollHero(cardEl, targetHeroKey, duration, onComplete) {
+    const heroKeys = Object.keys(HEROES);
+    const targetHero = HEROES[targetHeroKey];
+
+    // Ticks dari cepet ke lambat
+    // Start: 50ms, End: 300ms (ease out)
+    const tickSchedule = [];
+    let elapsed = 0;
+    const startInterval = 50;
+    const endInterval = 320;
+
+    while (elapsed < duration) {
+      // Interval melambat dengan ease
+      const progress = elapsed / duration;
+      const interval = startInterval + (endInterval - startInterval) * Math.pow(progress, 2);
+      tickSchedule.push(interval);
+      elapsed += interval;
+    }
+
+    let currentTick = 0;
+
+    function nextTick() {
+      if (skipped) return;
+
+      if (currentTick >= tickSchedule.length) {
+        // Final — tampil hero target
+        cardEl.className = "hero-slot-card " + targetHeroKey;
+        cardEl.innerHTML = `
+          <div class="hero-slot-icon">${targetHero.icon}</div>
+          <div class="hero-slot-name">${targetHero.name}</div>
+        `;
+        // Flash
+        cardEl.classList.add("flash");
+        playSpellSound();
+        if (onComplete) onComplete();
+        return;
+      }
+
+      // Random hero
+      const randomKey = heroKeys[Math.floor(Math.random() * heroKeys.length)];
+      const randomHero = HEROES[randomKey];
+      cardEl.className = "hero-slot-card " + randomKey;
+      cardEl.innerHTML = `
+        <div class="hero-slot-icon">${randomHero.icon}</div>
+        <div class="hero-slot-name">${randomHero.name}</div>
+      `;
+
+      // Play tick sound (soft)
+      if (gameSettings.soundEnabled && currentTick % 2 === 0) {
+        try {
+          AudioManager.play("click");
+        } catch (e) {}
+      }
+
+      const nextInterval = tickSchedule[currentTick];
+      currentTick++;
+      setTimeout(nextTick, nextInterval);
+    }
+
+    nextTick();
+  }
+
+  // ===== SEQUENCE =====
+  // 0.0s — Player gacha roll (1.8s)
+  setTimeout(() => {
+    if (skipped) return;
+    rollHero(playerCard, playerHeroKey, 1800, () => {
+      // 1.8s — Player STOP. Tunggu 300ms
+      if (skipped) return;
+      setTimeout(() => {
+        if (skipped) return;
+        // Player slide kiri
+        playerSlot.classList.add("slide-left");
+
+        // Enemy gacha start
+        setTimeout(() => {
+          if (skipped) return;
+          rollHero(enemyCard, enemyHeroKey, 1800, () => {
+            // Enemy STOP
+            if (skipped) return;
+            setTimeout(() => {
+              if (skipped) return;
+              // Enemy slide kanan
+              enemySlot.classList.add("slide-right");
+
+              // VS muncul
+              setTimeout(() => {
+                if (skipped) return;
+                vsEl.classList.add("show");
+
+                // Close overlay after 1s
+                setTimeout(() => {
+                  if (skipped) return;
+                  closeGacha();
+                }, 1000);
+              }, 300);
+            }, 200);
+          });
+        }, 300);
+      }, 300);
+    });
+  }, 100);
+
+  // ===== FINISH (skip) =====
+  function finishGacha() {
+    // Set final state langsung
+    playerCard.className = "hero-slot-card " + playerHeroKey;
+    playerCard.innerHTML = `
+      <div class="hero-slot-icon">${playerHero.icon}</div>
+      <div class="hero-slot-name">${playerHero.name}</div>
+    `;
+    enemyCard.className = "hero-slot-card " + enemyHeroKey;
+    enemyCard.innerHTML = `
+      <div class="hero-slot-icon">${enemyHero.icon}</div>
+      <div class="hero-slot-name">${enemyHero.name}</div>
+    `;
+    playerSlot.classList.add("slide-left");
+    enemySlot.classList.add("slide-right");
+    vsEl.classList.add("show");
+    setTimeout(closeGacha, 400);
+  }
+
+  function closeGacha() {
+    skipBtn.style.display = "none";
+    overlay.classList.add("closing");
+    setTimeout(() => {
+      overlay.classList.add("hidden");
+      overlay.classList.remove("closing");
+    }, 400);
+  }
 }
 
 // ===== TOP BAR =====
@@ -202,13 +475,15 @@ function handleCardPlay(row, col) {
       return;
     }
 
+    const heroAtkBonus = getHeroAtkBonus(gameState.playerHero);
+
     gameState.board[row][col] = {
       type: "UNIT",
       owner: "player",
       name: card.name,
       hp: card.hp,
       maxHp: card.hp,
-      attack: card.attack,
+      attack: card.attack + heroAtkBonus,
       range: card.range,
     };
 
@@ -300,6 +575,9 @@ function checkTrapAt(row, col, mover) {
 
 // ===== ROW DAMAGE (Lightning) =====
 function handleRowDamagePlay(row, card, cardKey) {
+  const heroBonus = getHeroSpellBonus(gameState.playerHero);
+  const damage = card.value + heroBonus;
+
   const targets = [];
   for (let c = 0; c < BOARD_SIZE; c++) {
     const o = gameState.board[row][c];
@@ -320,9 +598,9 @@ function handleRowDamagePlay(row, card, cardKey) {
   showSpellNotification("⚡", "LIGHTNING!", "#fbbf24");
 
   for (const t of targets) {
-    t.unit.hp -= card.value;
+    t.unit.hp -= damage;
     if (window.boardScene) {
-      window.boardScene.showFloatingText(t.row, t.col, `-${card.value}`, "#fbbf24");
+      window.boardScene.showFloatingText(t.row, t.col, `-${damage}`, "#fbbf24");
     }
   }
 
@@ -365,9 +643,11 @@ function handleSpellPlay(row, col, card, cardKey) {
   playSpellSound();
 
   if (card.effect === "DAMAGE") {
+    const heroBonus = getHeroSpellBonus(gameState.playerHero);
+    const damage = card.value + heroBonus;
     showSpellNotification("🔥", "FIREBALL!", "#f97316");
-    target.hp -= card.value;
-    if (window.boardScene) window.boardScene.showFloatingText(row, col, `-${card.value}`, "#f97316");
+    target.hp -= damage;
+    if (window.boardScene) window.boardScene.showFloatingText(row, col, `-${damage}`, "#f97316");
   } else if (card.effect === "HEAL") {
     showSpellNotification("💚", "HEAL!", "#22c55e");
     const healed = Math.min(card.value, target.maxHp - target.hp);
@@ -529,7 +809,10 @@ function onEndTurnClick() {
 function runAITurn() {
   gameState.isAITurn = true;
   _updatePhaseIndicator();
-  gameState.enemyAP = Math.min(gameState.turn + 3 + gameState.aiBonusAP, 12);
+
+  const heroAPBonus = getHeroAPBonus(gameState.enemyHero);
+  gameState.enemyAP = Math.min(gameState.turn + 3 + gameState.aiBonusAP + heroAPBonus, 13);
+  gameState._aiHealedThisTurn = false;
   drawEnemyCardFromDeck();
 
   document.getElementById("btn-end-turn").disabled = true;
@@ -584,11 +867,15 @@ function forceEndAITurn() {
   gameState.isAITurn = false;
   gameState._aiStuckCount = 0;
   gameState.turn++;
-  gameState.playerAP = Math.min(gameState.turn + 3, 12);
+
+  const heroAPBonus = getHeroAPBonus(gameState.playerHero);
+  gameState.playerAP = Math.min(gameState.turn + 3 + heroAPBonus, 13);
+
   if (typeof drawCardFromDeck === "function") drawCardFromDeck();
 
-  const btn = document.getElementById("btn-end-turn");
-  if (btn) btn.disabled = false;
+  document.getElementById("btn-end-turn").disabled = false;
+
+  checkTurnMilestone();
 
   updateTopBarUI();
   renderHandUI();
@@ -607,6 +894,7 @@ function forceEndAITurn() {
 function aiDoAction() {
   const enemyUnits = getUnitsByOwner("enemy");
   const playerUnits = getUnitsByOwner("player");
+  const heroSpellBonus = getHeroSpellBonus(gameState.enemyHero);
 
   // 0. FIREBALL KILL
   if (gameState.enemyAP >= 3) {
@@ -618,7 +906,8 @@ function aiDoAction() {
       const fireballKey = gameState.enemyHand[fireballIdx];
       const fireballCard = CARDS[fireballKey];
       if (fireballCard) {
-        const killable = playerUnits.find((pu) => pu.unit.hp <= fireballCard.value);
+        const totalDamage = fireballCard.value + heroSpellBonus;
+        const killable = playerUnits.find((pu) => pu.unit.hp <= totalDamage);
         if (killable) {
           const success = aiCastDamageSpell(fireballIdx, killable.row, killable.col, fireballCard);
           if (success) return true;
@@ -627,7 +916,7 @@ function aiDoAction() {
     }
   }
 
-  // 0.5. LIGHTNING — kalau ada 2+ unit player di 1 baris
+  // 0.5. LIGHTNING
   if (gameState.enemyAP >= 4) {
     const lightningIdx = gameState.enemyHand.findIndex((k) => {
       const c = CARDS[k];
@@ -667,7 +956,7 @@ function aiDoAction() {
   }
 
   // 2. HEAL
-  if (gameState.enemyAP >= 2) {
+  if (gameState.enemyAP >= 2 && !gameState._aiHealedThisTurn) {
     const healIdx = gameState.enemyHand.findIndex((k) => {
       const c = CARDS[k];
       return c && c.type === "SPELL" && c.effect === "HEAL";
@@ -676,7 +965,10 @@ function aiDoAction() {
       const wounded = enemyUnits.find((u) => u.unit.hp < u.unit.maxHp * 0.5);
       if (wounded) {
         const success = aiCastHealSpell(healIdx, wounded.row, wounded.col);
-        if (success) return true;
+        if (success) {
+          gameState._aiHealedThisTurn = true;
+          return true;
+        }
       }
     }
   }
@@ -797,11 +1089,14 @@ function aiCastDamageSpell(handIndex, row, col, card) {
   const cardKey = gameState.enemyHand[handIndex];
   if (!cardKey) return false;
 
+  const heroBonus = getHeroSpellBonus(gameState.enemyHero);
+  const damage = card.value + heroBonus;
+
   playSpellSound();
   showSpellNotification("🔥", "ENEMY FIREBALL!", "#f97316");
 
-  target.hp -= card.value;
-  if (window.boardScene) window.boardScene.showFloatingText(row, col, `-${card.value}`, "#f97316");
+  target.hp -= damage;
+  if (window.boardScene) window.boardScene.showFloatingText(row, col, `-${damage}`, "#f97316");
 
   gameState.enemyHand.splice(handIndex, 1);
   gameState.enemyDiscard.push(cardKey);
@@ -825,6 +1120,9 @@ function aiCastRowDamage(handIndex, row) {
   if (!card) return false;
   if (card.cost > gameState.enemyAP) return false;
 
+  const heroBonus = getHeroSpellBonus(gameState.enemyHero);
+  const damage = card.value + heroBonus;
+
   const targets = [];
   for (let c = 0; c < BOARD_SIZE; c++) {
     const o = gameState.board[row][c];
@@ -839,9 +1137,9 @@ function aiCastRowDamage(handIndex, row) {
   showSpellNotification("⚡", "ENEMY LIGHTNING!", "#fbbf24");
 
   for (const t of targets) {
-    t.unit.hp -= card.value;
+    t.unit.hp -= damage;
     if (window.boardScene) {
-      window.boardScene.showFloatingText(t.row, t.col, `-${card.value}`, "#fbbf24");
+      window.boardScene.showFloatingText(t.row, t.col, `-${damage}`, "#fbbf24");
     }
   }
 
@@ -900,6 +1198,7 @@ function aiCastHealSpell(handIndex, row, col) {
   gameState.enemyHand.splice(handIndex, 1);
   gameState.enemyDiscard.push(cardKey);
   gameState.enemyAP -= card.cost;
+  gameState._aiHealedThisTurn = true;
 
   updateTopBarUI();
   if (window.boardScene) window.boardScene.refresh();
@@ -977,13 +1276,15 @@ function aiSummon(handIndex, row, col) {
   if (card.cost > gameState.enemyAP) return false;
   if (gameState.board[row][col] !== null) return false;
 
+  const heroAtkBonus = getHeroAtkBonus(gameState.enemyHero);
+
   gameState.board[row][col] = {
     type: "UNIT",
     owner: "enemy",
     name: card.name,
     hp: card.hp,
     maxHp: card.hp,
-    attack: card.attack,
+    attack: card.attack + heroAtkBonus,
     range: card.range,
   };
 
@@ -1047,10 +1348,16 @@ function endAITurn() {
 
   gameState.isAITurn = false;
   gameState.turn++;
-  gameState.playerAP = Math.min(gameState.turn + 3, 12);
+
+  const heroAPBonus = getHeroAPBonus(gameState.playerHero);
+  gameState.playerAP = Math.min(gameState.turn + 3 + heroAPBonus, 13);
+
   drawCardFromDeck();
 
   document.getElementById("btn-end-turn").disabled = false;
+
+  checkTurnMilestone();
+
   updateTopBarUI();
   renderHandUI();
   updateHintUI();
@@ -1179,6 +1486,11 @@ function updateInfoPanelUI() {
   if (diffEl) {
     const diffLabels = { easy: "Easy", normal: "Normal", hard: "Hard" };
     diffEl.textContent = diffLabels[gameSettings.difficulty];
+  }
+  const heroEl = document.getElementById("info-hero");
+  if (heroEl && gameState.playerHero) {
+    const hero = HEROES[gameState.playerHero];
+    heroEl.textContent = `${hero.icon} ${hero.name}`;
   }
 }
 

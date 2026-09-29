@@ -19,6 +19,8 @@ const gameState = {
   isGameOver: false,
   isAnimating: false,
   aiBonusAP: 0,
+  playerHero: null,
+  enemyHero: null,
 };
 
 const BOARD_SIZE = 7;
@@ -27,9 +29,43 @@ const PLAYER_KING_ROW = 6;
 const ENEMY_KING_ROW = 0;
 const HAND_MAX = 4;
 
+// ===== HERO POOL =====
+const HEROES = {
+  warlord: {
+    id: "warlord",
+    name: "Warlord",
+    icon: "🗡️",
+    desc: "Semua unit +1 ATK",
+    color: "#ef4444",
+  },
+  archmage: {
+    id: "archmage",
+    name: "Archmage",
+    icon: "🔮",
+    desc: "Spell damage +1",
+    color: "#a855f7",
+  },
+  merchant: {
+    id: "merchant",
+    name: "Merchant",
+    icon: "💰",
+    desc: "+1 AP tiap turn",
+    color: "#fbbf24",
+  },
+};
+
+function getRandomHero() {
+  const keys = Object.keys(HEROES);
+  return keys[Math.floor(Math.random() * keys.length)];
+}
+
 function initGameState() {
   const diff = gameSettings.difficulty;
   const kingHP = diff === "easy" ? 18 : diff === "hard" ? 30 : 25;
+
+  // Random hero untuk player & AI
+  gameState.playerHero = getRandomHero();
+  gameState.enemyHero = getRandomHero();
 
   gameState.turn = 1;
   gameState.playerAP = 3;
@@ -51,6 +87,7 @@ function initGameState() {
   gameState.isGameOver = false;
   gameState.isAnimating = false;
   gameState.aiBonusAP = diff === "hard" ? 2 : 0;
+  gameState._aiHealedThisTurn = false;
 
   // Board 7x7
   for (let row = 0; row < BOARD_SIZE; row++) {
@@ -71,7 +108,7 @@ function initGameState() {
   shuffleArray(gameState.deck);
   shuffleArray(gameState.enemyDeck);
 
-  // Fill hand sampai 4 di awal
+  // Fill hand
   refillHand();
 }
 
@@ -82,11 +119,10 @@ function shuffleArray(arr) {
   }
 }
 
-// ===== REFILL: draw sampai hand penuh (HAND_MAX) =====
 function refillHand() {
   while (gameState.hand.length < HAND_MAX) {
     if (gameState.deck.length === 0) {
-      if (gameState.discard.length === 0) return; // gak ada kartu
+      if (gameState.discard.length === 0) return;
       gameState.deck = [...gameState.discard];
       gameState.discard = [];
       shuffleArray(gameState.deck);
@@ -111,7 +147,6 @@ function refillEnemyHand() {
   }
 }
 
-// Alias biar gak break code lain
 function drawCardFromDeck() {
   refillHand();
 }

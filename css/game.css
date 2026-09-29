@@ -34,6 +34,7 @@
   display: flex;
   align-items: center;
   flex-shrink: 0;
+  gap: 10px;
 }
 
 .game-logo {
@@ -122,14 +123,46 @@
   transform: translateY(-1px);
 }
 
+/* ===== HERO BADGE ===== */
+.hero-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(30, 41, 59, 0.7);
+  border: 1.5px solid var(--gold);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-family: var(--font-title);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  transition: var(--transition);
+  cursor: help;
+}
+
+.hero-badge:hover {
+  background: rgba(30, 41, 59, 0.95);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.hero-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.hero-name {
+  font-size: 0.75rem;
+  letter-spacing: 1px;
+}
+
 /* ===== BOARD WRAPPER ===== */
-/* ===== BOARD WRAPPER — FLEX 1, CENTER ===== */
 .board-wrapper {
   flex: 1 1 auto;
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 12px;
+  padding: 10px;
   min-height: 0;
   min-width: 0;
   overflow: hidden;
@@ -137,26 +170,29 @@
 }
 
 #phaser-board {
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  background: radial-gradient(ellipse at center, rgba(22, 27, 34, 0.8) 0%, #0a0d1a 100%);
-  border: 1px solid rgba(48, 54, 61, 0.8);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
   box-shadow:
-    0 0 40px rgba(0, 0, 0, 0.6),
-    inset 0 0 60px rgba(0, 0, 0, 0.3);
+    0 12px 40px rgba(0, 0, 0, 0.7),
+    inset 0 0 60px rgba(212, 162, 74, 0.03);
   display: flex;
   justify-content: center;
   align-items: center;
-  flex-shrink: 0;
-  padding: 0;
+  width: fit-content;
+  height: fit-content;
+  max-width: 100%;
+  max-height: 100%;
+  padding: 10px;
   position: relative;
 }
 
 #phaser-board canvas {
   display: block !important;
-  border-radius: 12px;
-  width: auto !important;
-  height: auto !important;
+  border-radius: 10px;
+  max-width: 100% !important;
+  max-height: 100% !important;
 }
 
 /* ===== HINT ===== */
@@ -597,6 +633,312 @@
   box-shadow: 0 8px 20px rgba(212, 162, 74, 0.5);
 }
 
+/* ===== HERO DRAW OVERLAY — GACHA STYLE ===== */
+.hero-draw-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.95);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 500;
+  opacity: 0;
+  animation: gachaFadeIn 0.3s ease-out forwards;
+}
+
+.hero-draw-overlay.hidden {
+  display: none;
+}
+
+.hero-draw-overlay.closing {
+  animation: gachaFadeOut 0.4s ease-in forwards;
+}
+
+@keyframes gachaFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes gachaFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* Skip button */
+.hero-draw-skip {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  padding: 8px 18px;
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  color: var(--gold);
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+  transition: var(--transition);
+  z-index: 10;
+}
+
+.hero-draw-skip:hover {
+  background: rgba(30, 41, 59, 1);
+  border-color: var(--gold-bright);
+  color: var(--gold-bright);
+  transform: translateY(-1px);
+}
+
+/* Stage */
+.hero-draw-stage {
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  height: 380px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+/* Slots */
+.hero-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  position: absolute;
+  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Player slot posisi awal — tengah */
+.hero-slot-player {
+  transform: translateX(0);
+}
+
+/* Player slot final — ke kiri */
+.hero-slot-player.slide-left {
+  transform: translateX(-180px);
+}
+
+/* Enemy slot posisi awal — tengah */
+.hero-slot-enemy {
+  transform: translateX(0);
+}
+
+/* Enemy slot final — ke kanan */
+.hero-slot-enemy.slide-right {
+  transform: translateX(180px);
+}
+
+/* Card */
+.hero-slot-card {
+  width: 180px;
+  height: 240px;
+  background: linear-gradient(180deg, #1a2238 0%, #0f1421 100%);
+  border: 3px solid var(--gold);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+  box-shadow:
+    0 0 30px rgba(212, 162, 74, 0.2),
+    0 20px 60px rgba(0, 0, 0, 0.8);
+  transition: all 0.2s ease-out;
+}
+
+/* Flash pas hero stop */
+.hero-slot-card.flash {
+  animation: gachaFlash 0.6s ease-out;
+}
+
+@keyframes gachaFlash {
+  0% {
+    transform: scale(1);
+    box-shadow:
+      0 0 30px rgba(212, 162, 74, 0.2),
+      0 20px 60px rgba(0, 0, 0, 0.8);
+  }
+  30% {
+    transform: scale(1.15);
+    box-shadow:
+      0 0 80px rgba(255, 255, 255, 0.9),
+      0 0 120px rgba(212, 162, 74, 0.8),
+      0 20px 60px rgba(0, 0, 0, 0.8);
+    border-color: #fff;
+  }
+  60% {
+    transform: scale(1.08);
+    box-shadow:
+      0 0 60px rgba(212, 162, 74, 0.6),
+      0 20px 60px rgba(0, 0, 0, 0.8);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 0 30px rgba(212, 162, 74, 0.2),
+      0 20px 60px rgba(0, 0, 0, 0.8);
+  }
+}
+
+/* Icon */
+.hero-slot-icon {
+  font-size: 4rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 20px currentColor);
+  transition: transform 0.1s;
+}
+
+/* Name */
+.hero-slot-name {
+  font-family: 'Cinzel', serif;
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: var(--gold-bright);
+  letter-spacing: 2px;
+  text-shadow: 0 0 15px rgba(212, 162, 74, 0.6);
+}
+
+/* Label YOU / ENEMY */
+.hero-slot-label {
+  font-family: 'Cinzel', serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--gold);
+  opacity: 0.6;
+}
+
+/* VS */
+.hero-vs {
+  font-family: 'Cinzel', serif;
+  font-size: 3.5rem;
+  font-weight: 900;
+  color: var(--hp-red);
+  letter-spacing: 4px;
+  text-shadow:
+    0 0 30px rgba(201, 61, 61, 0.8),
+    0 0 60px rgba(201, 61, 61, 0.4);
+  opacity: 0;
+  transform: scale(0);
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: 5;
+}
+
+.hero-vs.show {
+  opacity: 1;
+  transform: scale(1);
+  animation: vsPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes vsPulse {
+  0%, 100% {
+    text-shadow:
+      0 0 30px rgba(201, 61, 61, 0.8),
+      0 0 60px rgba(201, 61, 61, 0.4);
+  }
+  50% {
+    text-shadow:
+      0 0 50px rgba(201, 61, 61, 1),
+      0 0 90px rgba(201, 61, 61, 0.6);
+  }
+}
+
+/* Warna card per hero */
+.hero-slot-card.warlord {
+  border-color: #ef4444;
+  box-shadow:
+    0 0 30px rgba(239, 68, 68, 0.3),
+    0 20px 60px rgba(0, 0, 0, 0.8);
+}
+.hero-slot-card.warlord .hero-slot-name {
+  color: #ef4444;
+  text-shadow: 0 0 15px rgba(239, 68, 68, 0.6);
+}
+
+.hero-slot-card.archmage {
+  border-color: #a855f7;
+  box-shadow:
+    0 0 30px rgba(168, 85, 247, 0.3),
+    0 20px 60px rgba(0, 0, 0, 0.8);
+}
+.hero-slot-card.archmage .hero-slot-name {
+  color: #a855f7;
+  text-shadow: 0 0 15px rgba(168, 85, 247, 0.6);
+}
+
+.hero-slot-card.merchant {
+  border-color: #fbbf24;
+  box-shadow:
+    0 0 30px rgba(251, 191, 36, 0.3),
+    0 20px 60px rgba(0, 0, 0, 0.8);
+}
+.hero-slot-card.merchant .hero-slot-name {
+  color: #fbbf24;
+  text-shadow: 0 0 15px rgba(251, 191, 36, 0.6);
+}
+
+/* Mobile responsive */
+@media (max-width: 700px) {
+  .hero-draw-stage {
+    height: 280px;
+    padding: 10px;
+  }
+  .hero-slot-card {
+    width: 120px;
+    height: 160px;
+    padding: 10px;
+    border-width: 2px;
+    gap: 6px;
+  }
+  .hero-slot-icon {
+    font-size: 2.5rem;
+  }
+  .hero-slot-name {
+    font-size: 0.9rem;
+  }
+  .hero-vs {
+    font-size: 2rem;
+  }
+  .hero-slot-player.slide-left {
+    transform: translateX(-100px);
+  }
+  .hero-slot-enemy.slide-right {
+    transform: translateX(100px);
+  }
+  .hero-draw-skip {
+    top: 12px;
+    right: 12px;
+    padding: 6px 12px;
+    font-size: 0.65rem;
+  }
+}
+
+@media (max-height: 500px) {
+  .hero-draw-stage {
+    height: 200px;
+  }
+  .hero-slot-card {
+    width: 100px;
+    height: 130px;
+    gap: 4px;
+  }
+  .hero-slot-icon {
+    font-size: 2rem;
+  }
+  .hero-slot-name {
+    font-size: 0.8rem;
+  }
+  .hero-vs {
+    font-size: 1.8rem;
+  }
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-height: 700px) {
   .game-card { width: 88px; height: 120px; }
@@ -607,6 +949,7 @@
   .game-logo { font-size: 0.85rem; letter-spacing: 1.5px; }
   .hud-value { font-size: 0.85rem; }
   .hud-label { font-size: 0.5rem; }
+  .hero-badge { padding: 3px 8px; font-size: 0.7rem; }
 }
 
 @media (max-height: 600px) {
@@ -632,6 +975,9 @@
   .hud-divider { display: none; }
   .hud-center { gap: 4px; }
   .hud-stat { padding: 1px 6px; }
+  .hero-badge { padding: 2px 6px; font-size: 0.62rem; margin-left: 6px; }
+  .hero-icon { font-size: 0.9rem; }
+  .hero-name { font-size: 0.62rem; }
 }
 
 @media (max-height: 500px) {
@@ -640,6 +986,34 @@
   .card-desc { display: none; }
   .hand-wrapper { min-height: 72px; }
   .btn-end-turn-bottom { padding: 6px 16px; font-size: 0.7rem; }
+}
+
+@media (max-width: 700px) {
+  .hero-draw-content {
+    gap: 20px;
+    padding: 10px;
+  }
+  .hero-draw-card {
+    width: 120px;
+    height: 160px;
+    padding: 10px;
+    border-width: 2px;
+  }
+  .hero-draw-icon {
+    font-size: 2.5rem;
+  }
+  .hero-draw-name {
+    font-size: 0.9rem;
+  }
+  .hero-draw-desc {
+    font-size: 0.55rem;
+  }
+  .hero-draw-vs {
+    font-size: 2rem;
+  }
+  .hero-draw-label {
+    font-size: 0.75rem;
+  }
 }
 
 @media (max-width: 500px) and (orientation: portrait) {
