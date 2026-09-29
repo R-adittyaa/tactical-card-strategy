@@ -117,6 +117,7 @@ function renderHandUI() {
 
   gameState.hand.forEach((cardKey, index) => {
     const card = CARDS[cardKey];
+    if (!card) return;
     const isSelected = gameState.selectedCard === index;
     const canAfford = card.cost <= gameState.playerAP;
     const isSpell = card.type === "SPELL";
@@ -188,6 +189,7 @@ window.onBoardTileClick = function (row, col) {
 function handleCardPlay(row, col) {
   const cardKey = gameState.hand[gameState.selectedCard];
   const card = CARDS[cardKey];
+  if (!card) return;
 
   if (card.cost > gameState.playerAP) {
     playClickSound();
@@ -195,7 +197,8 @@ function handleCardPlay(row, col) {
   }
 
   if (card.type === "UNIT") {
-    if (row < 4 || gameState.board[row][col] !== null) {      playClickSound();
+    if (row < 4 || gameState.board[row][col] !== null) {
+      playClickSound();
       return;
     }
 
@@ -232,6 +235,10 @@ function handleCardPlay(row, col) {
       handleTrapPlay(row, col, card, cardKey);
       return;
     }
+    if (card.effect === "ROW_DAMAGE") {
+      handleRowDamagePlay(row, card, cardKey);
+      return;
+    }
     handleSpellPlay(row, col, card, cardKey);
     return;
   }
@@ -251,7 +258,6 @@ function handleTrapPlay(row, col, card, cardKey) {
 
   playSpellSound();
   showSpellNotification("🪤", "TRAP SET!", "#8b5cf6");
-  if (window.boardScene) window.boardScene.showFloatingText(row, col, "🪤", "#8b5cf6");
 
   updateTopBarUI();
   renderHandUI();
@@ -290,6 +296,60 @@ function checkTrapAt(row, col, mover) {
   updateTopBarUI();
   checkWinLoss();
   return true;
+}
+
+// ===== ROW DAMAGE (Lightning) =====
+function handleRowDamagePlay(row, card, cardKey) {
+  const targets = [];
+  for (let c = 0; c < BOARD_SIZE; c++) {
+    const o = gameState.board[row][c];
+    if (o && o.owner === "enemy" && o.type === "UNIT") {
+      targets.push({ row, col: c, unit: o });
+    }
+  }
+
+  if (targets.length === 0) {
+    playClickSound();
+    return;
+  }
+
+  gameState.isAnimating = true;
+  _startAnimSafety();
+  playSpellSound();
+
+  showSpellNotification("⚡", "LIGHTNING!", "#fbbf24");
+
+  for (const t of targets) {
+    t.unit.hp -= card.value;
+    if (window.boardScene) {
+      window.boardScene.showFloatingText(t.row, t.col, `-${card.value}`, "#fbbf24");
+    }
+  }
+
+  for (const t of targets) {
+    if (t.unit.hp <= 0) {
+      gameState.board[t.row][t.col] = null;
+    }
+  }
+
+  gameState.playerAP -= card.cost;
+  gameState.hand.splice(gameState.selectedCard, 1);
+  gameState.discard.push(cardKey);
+  gameState.selectedCard = null;
+
+  if (targets.some((t) => t.unit.hp <= 0)) {
+    playDeathSound();
+  }
+
+  setTimeout(() => {
+    gameState.isAnimating = false;
+    updateTopBarUI();
+    renderHandUI();
+    updateHintUI();
+    updateInfoPanelUI();
+    if (window.boardScene) window.boardScene.refresh();
+    checkWinLoss();
+  }, 400);
 }
 
 // ===== SPELL =====
@@ -476,14 +536,41 @@ function runAITurn() {
   updateHintUI();
   updateInfoPanelUI();
 
+  gameState._aiLastAP = gameState.enemyAP;
+  gameState._aiStuckCount = 0;
+
   setTimeout(() => aiStep(1), 500);
 }
 
 function aiStep(stepNum) {
   if (gameState.isGameOver) { endAITurn(); return; }
-  if (stepNum > 40) { endAITurn(); return; }
 
-  const acted = aiDoAction();
+  if (stepNum > 15) {
+    console.warn("⚠️ AI max step 15, force end");
+    forceEndAITurn();
+    return;
+  }
+
+  if (gameState.enemyAP === gameState._aiLastAP) {
+    gameState._aiStuckCount++;
+    if (gameState._aiStuckCount >= 2) {
+      console.warn("⚠️ AI stuck AP 2x, force end");
+      forceEndAITurn();
+      return;
+    }
+  } else {
+    gameState._aiStuckCount = 0;
+  }
+  gameState._aiLastAP = gameState.enemyAP;
+
+  let acted = false;
+  try {
+    acted = aiDoAction();
+  } catch (e) {
+    console.error("❌ AI error di aiDoAction:", e);
+    forceEndAITurn();
+    return;
+  }
 
   if (acted && gameState.enemyAP > 0) {
     setTimeout(() => aiStep(stepNum + 1), 600);
@@ -492,75 +579,403 @@ function aiStep(stepNum) {
   }
 }
 
+function forceEndAITurn() {
+  console.log("🚨 Force ending AI turn...");
+  gameState.isAITurn = false;
+  gameState._aiStuckCount = 0;
+  gameState.turn++;
+  gameState.playerAP = Math.min(gameState.turn + 3, 12);
+  if (typeof drawCardFromDeck === "function") drawCardFromDeck();
+
+  const btn = document.getElementById("btn-end-turn");
+  if (btn) btn.disabled = false;
+
+  updateTopBarUI();
+  renderHandUI();
+  updateHintUI();
+  updateInfoPanelUI();
+  if (window.boardScene) window.boardScene.refresh();
+
+  showTurnBanner("YOUR TURN");
+  playTurnSound();
+  _updatePhaseIndicator();
+}
+
+// ============================================================
+// AI 2.0
+// ============================================================
 function aiDoAction() {
   const enemyUnits = getUnitsByOwner("enemy");
   const playerUnits = getUnitsByOwner("player");
 
-  if (gameState.enemyAP >= 2) {
-    for (let i = 0; i < gameState.enemyHand.length; i++) {
-      const card = CARDS[gameState.enemyHand[i]];
-      if (card.type === "SPELL" && card.effect === "HEAL") {
-        const wounded = enemyUnits.find((u) => u.unit.hp < u.unit.maxHp * 0.5);
-        if (wounded) { aiCastSpell(i, wounded.row, wounded.col, card); return true; }
+  // 0. FIREBALL KILL
+  if (gameState.enemyAP >= 3) {
+    const fireballIdx = gameState.enemyHand.findIndex((k) => {
+      const c = CARDS[k];
+      return c && c.type === "SPELL" && c.effect === "DAMAGE";
+    });
+    if (fireballIdx !== -1) {
+      const fireballKey = gameState.enemyHand[fireballIdx];
+      const fireballCard = CARDS[fireballKey];
+      if (fireballCard) {
+        const killable = playerUnits.find((pu) => pu.unit.hp <= fireballCard.value);
+        if (killable) {
+          const success = aiCastDamageSpell(fireballIdx, killable.row, killable.col, fireballCard);
+          if (success) return true;
+        }
       }
     }
   }
 
+  // 0.5. LIGHTNING — kalau ada 2+ unit player di 1 baris
+  if (gameState.enemyAP >= 4) {
+    const lightningIdx = gameState.enemyHand.findIndex((k) => {
+      const c = CARDS[k];
+      return c && c.type === "SPELL" && c.effect === "ROW_DAMAGE";
+    });
+    if (lightningIdx !== -1) {
+      const bestRow = findBestLightningRow();
+      if (bestRow !== -1) {
+        const success = aiCastRowDamage(lightningIdx, bestRow);
+        if (success) return true;
+      }
+    }
+  }
+
+  // 1. KILL ATTACK
   for (const eu of enemyUnits) {
     for (const pu of playerUnits) {
       const d = distance(eu.row, eu.col, pu.row, pu.col);
       if (d <= eu.unit.range && d > 0) {
-        if (gameState.enemyAP >= 1) { aiAttack(eu.row, eu.col, pu.row, pu.col); return true; }
+        if (pu.unit.hp <= eu.unit.attack) {
+          if (gameState.enemyAP >= 1) {
+            aiAttack(eu.row, eu.col, pu.row, pu.col);
+            return true;
+          }
+        }
       }
     }
     const dKing = distance(eu.row, eu.col, PLAYER_KING_ROW, KING_COL);
     if (dKing <= eu.unit.range && dKing > 0) {
-      if (gameState.enemyAP >= 1) { aiAttack(eu.row, eu.col, PLAYER_KING_ROW, KING_COL); return true; }
+      if (gameState.playerKingHP <= eu.unit.attack) {
+        if (gameState.enemyAP >= 1) {
+          aiAttack(eu.row, eu.col, PLAYER_KING_ROW, KING_COL);
+          return true;
+        }
+      }
     }
   }
 
-  for (let i = 0; i < gameState.enemyHand.length; i++) {
-    const card = CARDS[gameState.enemyHand[i]];
-    if (card.type === "UNIT" && card.cost <= gameState.enemyAP) {
-      const tile = findEnemySummonTile();
-      if (tile) { aiSummon(i, tile.row, tile.col); return true; }
+  // 2. HEAL
+  if (gameState.enemyAP >= 2) {
+    const healIdx = gameState.enemyHand.findIndex((k) => {
+      const c = CARDS[k];
+      return c && c.type === "SPELL" && c.effect === "HEAL";
+    });
+    if (healIdx !== -1) {
+      const wounded = enemyUnits.find((u) => u.unit.hp < u.unit.maxHp * 0.5);
+      if (wounded) {
+        const success = aiCastHealSpell(healIdx, wounded.row, wounded.col);
+        if (success) return true;
+      }
     }
   }
 
+  // 3. SUMMON
+  const aiUnitCount = enemyUnits.length;
+  const playerUnitCount = playerUnits.length;
+  const shouldSummon = aiUnitCount <= playerUnitCount || aiUnitCount < 3;
+
+  if (shouldSummon || gameState.enemyAP >= 4) {
+    const summonableCards = [];
+    for (let i = 0; i < gameState.enemyHand.length; i++) {
+      const cardKey = gameState.enemyHand[i];
+      const card = CARDS[cardKey];
+      if (card && card.type === "UNIT" && card.cost <= gameState.enemyAP) {
+        summonableCards.push({ index: i, cardKey, card });
+      }
+    }
+
+    if (summonableCards.length > 0) {
+      const aiHasTank = enemyUnits.some((u) => u.unit.name.toLowerCase().includes("guardian"));
+      const aiHasRanged = enemyUnits.some((u) => u.unit.name.toLowerCase().includes("archer"));
+      const aiHasMelee = enemyUnits.some((u) => u.unit.name.toLowerCase().includes("knight"));
+      const aiHasAssassin = enemyUnits.some((u) => u.unit.name.toLowerCase().includes("assassin"));
+
+      const guardians = summonableCards.filter((s) => s.card.name.toLowerCase().includes("guardian"));
+      const archers = summonableCards.filter((s) => s.card.name.toLowerCase().includes("archer"));
+      const knights = summonableCards.filter((s) => s.card.name.toLowerCase().includes("knight"));
+      const assassins = summonableCards.filter((s) => s.card.name.toLowerCase().includes("assassin"));
+
+      let chosenCard = null;
+      if (!aiHasTank && guardians.length > 0) chosenCard = guardians[0];
+      else if (!aiHasRanged && archers.length > 0) chosenCard = archers[0];
+      else if (!aiHasMelee && knights.length > 0) chosenCard = knights[0];
+      else if (!aiHasAssassin && assassins.length > 0) chosenCard = assassins[0];
+      else chosenCard = summonableCards[Math.floor(Math.random() * summonableCards.length)];
+
+      const tile = findEnemySummonTile(chosenCard.card);
+      if (tile) {
+        const success = aiSummon(chosenCard.index, tile.row, tile.col);
+        if (success) return true;
+      }
+    }
+  }
+
+  // 4. TRAP
+  if (gameState.enemyAP >= 2) {
+    const trapIdx = gameState.enemyHand.findIndex((k) => {
+      const c = CARDS[k];
+      return c && c.type === "SPELL" && c.effect === "TRAP";
+    });
+    if (trapIdx !== -1) {
+      const trapTile = aiFindTrapTile();
+      if (trapTile) {
+        const success = aiCastTrap(trapIdx, trapTile.row, trapTile.col);
+        if (success) return true;
+      }
+    }
+  }
+
+  // 5. RAGE
+  if (gameState.enemyAP >= 2) {
+    const rageIdx = gameState.enemyHand.findIndex((k) => {
+      const c = CARDS[k];
+      return c && c.type === "SPELL" && c.effect === "BUFF";
+    });
+    if (rageIdx !== -1) {
+      const bestTarget = enemyUnits
+        .filter((u) => u.unit.hp > u.unit.maxHp * 0.5)
+        .sort((a, b) => b.row - a.row)[0];
+      if (bestTarget) {
+        const success = aiCastBuffSpell(rageIdx, bestTarget.row, bestTarget.col);
+        if (success) return true;
+      }
+    }
+  }
+
+  // 6. ATTACK biasa
+  for (const eu of enemyUnits) {
+    for (const pu of playerUnits) {
+      const d = distance(eu.row, eu.col, pu.row, pu.col);
+      if (d <= eu.unit.range && d > 0) {
+        if (gameState.enemyAP >= 1) {
+          aiAttack(eu.row, eu.col, pu.row, pu.col);
+          return true;
+        }
+      }
+    }
+    const dKing = distance(eu.row, eu.col, PLAYER_KING_ROW, KING_COL);
+    if (dKing <= eu.unit.range && dKing > 0) {
+      if (gameState.enemyAP >= 1) {
+        aiAttack(eu.row, eu.col, PLAYER_KING_ROW, KING_COL);
+        return true;
+      }
+    }
+  }
+
+  // 7. MOVE
   for (const eu of enemyUnits) {
     if (gameState.enemyAP >= 1) {
       const move = findBestMove(eu.row, eu.col);
-      if (move) { aiMove(eu.row, eu.col, move.row, move.col); return true; }
+      if (move) {
+        aiMove(eu.row, eu.col, move.row, move.col);
+        return true;
+      }
     }
   }
 
   return false;
 }
 
-function aiCastSpell(handIndex, row, col, card) {
+// ===== AI SPELL HELPERS =====
+function aiCastDamageSpell(handIndex, row, col, card) {
   const target = gameState.board[row][col];
-  if (!target) return;
+  if (!target) return false;
+  if (card.cost > gameState.enemyAP) return false;
+
+  const cardKey = gameState.enemyHand[handIndex];
+  if (!cardKey) return false;
 
   playSpellSound();
+  showSpellNotification("🔥", "ENEMY FIREBALL!", "#f97316");
 
-  if (card.effect === "HEAL") {
-    showSpellNotification("💚", "ENEMY HEAL!", "#22c55e");
-    const healed = Math.min(card.value, target.maxHp - target.hp);
-    target.hp += healed;
-    if (window.boardScene) window.boardScene.showFloatingText(row, col, `+${healed}`, "#22c55e");
+  target.hp -= card.value;
+  if (window.boardScene) window.boardScene.showFloatingText(row, col, `-${card.value}`, "#f97316");
+
+  gameState.enemyHand.splice(handIndex, 1);
+  gameState.enemyDiscard.push(cardKey);
+  gameState.enemyAP -= card.cost;
+
+  if (target.hp <= 0 && target.type !== "KING") {
+    gameState.board[row][col] = null;
+    playDeathSound();
+  }
+
+  updateTopBarUI();
+  if (window.boardScene) window.boardScene.refresh();
+  checkWinLoss();
+  return true;
+}
+
+function aiCastRowDamage(handIndex, row) {
+  const cardKey = gameState.enemyHand[handIndex];
+  if (!cardKey) return false;
+  const card = CARDS[cardKey];
+  if (!card) return false;
+  if (card.cost > gameState.enemyAP) return false;
+
+  const targets = [];
+  for (let c = 0; c < BOARD_SIZE; c++) {
+    const o = gameState.board[row][c];
+    if (o && o.owner === "player" && o.type === "UNIT") {
+      targets.push({ row, col: c, unit: o });
+    }
+  }
+
+  if (targets.length === 0) return false;
+
+  playSpellSound();
+  showSpellNotification("⚡", "ENEMY LIGHTNING!", "#fbbf24");
+
+  for (const t of targets) {
+    t.unit.hp -= card.value;
+    if (window.boardScene) {
+      window.boardScene.showFloatingText(t.row, t.col, `-${card.value}`, "#fbbf24");
+    }
+  }
+
+  for (const t of targets) {
+    if (t.unit.hp <= 0) {
+      gameState.board[t.row][t.col] = null;
+    }
+  }
+
+  if (targets.some((t) => t.unit.hp <= 0)) {
+    playDeathSound();
   }
 
   gameState.enemyHand.splice(handIndex, 1);
-  gameState.enemyDiscard.push(card.id);
+  gameState.enemyDiscard.push(cardKey);
   gameState.enemyAP -= card.cost;
 
   updateTopBarUI();
   if (window.boardScene) window.boardScene.refresh();
+  checkWinLoss();
+  return true;
+}
+
+function findBestLightningRow() {
+  const rowCounts = [];
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    let count = 0;
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      const o = gameState.board[r][c];
+      if (o && o.owner === "player" && o.type === "UNIT") count++;
+    }
+    if (count >= 2) rowCounts.push({ row: r, count });
+  }
+  if (rowCounts.length === 0) return -1;
+  rowCounts.sort((a, b) => b.count - a.count);
+  return rowCounts[0].row;
+}
+
+function aiCastHealSpell(handIndex, row, col) {
+  const target = gameState.board[row][col];
+  if (!target) return false;
+
+  const cardKey = gameState.enemyHand[handIndex];
+  if (!cardKey) return false;
+  const card = CARDS[cardKey];
+  if (!card) return false;
+  if (card.cost > gameState.enemyAP) return false;
+
+  playSpellSound();
+  showSpellNotification("💚", "ENEMY HEAL!", "#22c55e");
+
+  const healed = Math.min(card.value, target.maxHp - target.hp);
+  target.hp += healed;
+  if (window.boardScene) window.boardScene.showFloatingText(row, col, `+${healed}`, "#22c55e");
+
+  gameState.enemyHand.splice(handIndex, 1);
+  gameState.enemyDiscard.push(cardKey);
+  gameState.enemyAP -= card.cost;
+
+  updateTopBarUI();
+  if (window.boardScene) window.boardScene.refresh();
+  return true;
+}
+
+function aiCastBuffSpell(handIndex, row, col) {
+  const target = gameState.board[row][col];
+  if (!target) return false;
+
+  const cardKey = gameState.enemyHand[handIndex];
+  if (!cardKey) return false;
+  const card = CARDS[cardKey];
+  if (!card) return false;
+  if (card.cost > gameState.enemyAP) return false;
+
+  playSpellSound();
+  showSpellNotification("💪", "ENEMY RAGE!", "#fbbf24");
+
+  target.attack += card.value;
+  if (window.boardScene) window.boardScene.showFloatingText(row, col, `+${card.value} ATK`, "#fbbf24");
+
+  gameState.enemyHand.splice(handIndex, 1);
+  gameState.enemyDiscard.push(cardKey);
+  gameState.enemyAP -= card.cost;
+
+  updateTopBarUI();
+  if (window.boardScene) window.boardScene.refresh();
+  return true;
+}
+
+function aiCastTrap(handIndex, row, col) {
+  if (gameState.board[row][col] !== null) return false;
+  if (gameState.traps && gameState.traps.some((t) => t.row === row && t.col === col)) return false;
+  if (!gameState.traps) gameState.traps = [];
+
+  const cardKey = gameState.enemyHand[handIndex];
+  if (!cardKey) return false;
+  const card = CARDS[cardKey];
+  if (!card) return false;
+  if (card.cost > gameState.enemyAP) return false;
+
+  gameState.traps.push({ row, col, owner: "enemy", damage: card.value });
+
+  gameState.enemyHand.splice(handIndex, 1);
+  gameState.enemyDiscard.push(cardKey);
+  gameState.enemyAP -= card.cost;
+
+  playSpellSound();
+  showSpellNotification("🪤", "ENEMY TRAP!", "#ef4444");
+  updateTopBarUI();
+  return true;
+}
+
+function aiFindTrapTile() {
+  const candidates = [];
+  for (let r = 2; r <= 4; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      if (gameState.board[r][c] === null &&
+          !(gameState.traps && gameState.traps.some((t) => t.row === r && t.col === c))) {
+        candidates.push({ row: r, col: c });
+      }
+    }
+  }
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => Math.abs(a.col - KING_COL) - Math.abs(b.col - KING_COL));
+  return candidates[0];
 }
 
 function aiSummon(handIndex, row, col) {
   const cardKey = gameState.enemyHand[handIndex];
   const card = CARDS[cardKey];
+
+  if (!card) return false;
+  if (card.cost > gameState.enemyAP) return false;
+  if (gameState.board[row][col] !== null) return false;
 
   gameState.board[row][col] = {
     type: "UNIT",
@@ -576,14 +991,18 @@ function aiSummon(handIndex, row, col) {
   gameState.enemyDiscard.push(cardKey);
   gameState.enemyAP -= card.cost;
 
+  console.log(`🤖 AI summon ${card.name} di [${row}, ${col}]`);
+
   if (window.boardScene) {
     window.boardScene.refresh();
     window.boardScene.animateSpawn(row, col);
   }
+  return true;
 }
 
 function aiMove(fromRow, fromCol, toRow, toCol) {
   const mover = gameState.board[fromRow][fromCol];
+  if (!mover) return false;
   gameState.board[toRow][toCol] = mover;
   gameState.board[fromRow][fromCol] = null;
   gameState.enemyAP -= 1;
@@ -592,11 +1011,13 @@ function aiMove(fromRow, fromCol, toRow, toCol) {
   checkTrapAt(toRow, toCol, mover);
 
   if (window.boardScene) window.boardScene.refresh();
+  return true;
 }
 
 function aiAttack(fromRow, fromCol, toRow, toCol) {
   const attacker = gameState.board[fromRow][fromCol];
   const target = gameState.board[toRow][toCol];
+  if (!attacker || !target) return false;
 
   playAttackSound();
 
@@ -618,6 +1039,7 @@ function aiAttack(fromRow, fromCol, toRow, toCol) {
   updateTopBarUI();
   if (window.boardScene) window.boardScene.refresh();
   checkWinLoss();
+  return true;
 }
 
 function endAITurn() {
@@ -654,16 +1076,53 @@ function getUnitsByOwner(owner) {
   return units;
 }
 
-function findEnemySummonTile() {
+function findEnemySummonTile(card) {
   const candidates = [];
-  for (let r = 0; r <= 1; r++) {
+  for (let r = 0; r <= 2; r++) {
     for (let c = 0; c < BOARD_SIZE; c++) {
-      if (gameState.board[r][c] === null) candidates.push({ row: r, col: c });
+      if (gameState.board[r][c] === null) {
+        candidates.push({ row: r, col: c });
+      }
     }
   }
   if (candidates.length === 0) return null;
+
+  const enemyUnits = getUnitsByOwner("enemy");
+  const aiUnitCount = enemyUnits.length;
+
+  if (card && card.name.toLowerCase().includes("guardian")) {
+    const frontTiles = candidates.filter((t) => t.row === 2);
+    if (frontTiles.length > 0) {
+      frontTiles.sort((a, b) => Math.abs(a.col - KING_COL) - Math.abs(b.col - KING_COL));
+      return frontTiles[0];
+    }
+  }
+
+  if (card && card.name.toLowerCase().includes("archer")) {
+    const backTiles = candidates.filter((t) => t.row <= 1);
+    if (backTiles.length > 0) {
+      backTiles.sort((a, b) => Math.abs(b.col - KING_COL) - Math.abs(a.col - KING_COL));
+      return backTiles[0];
+    }
+  }
+
+  if (aiUnitCount < 2) {
+    candidates.sort((a, b) => Math.abs(a.col - KING_COL) - Math.abs(b.col - KING_COL));
+    return candidates[0];
+  }
+
+  if (aiUnitCount >= 3) {
+    const leftFlank = candidates.filter((t) => t.col <= 2);
+    const rightFlank = candidates.filter((t) => t.col >= 4);
+    if (leftFlank.length > 0 && rightFlank.length > 0) {
+      return leftFlank.length >= rightFlank.length ? leftFlank[0] : rightFlank[0];
+    }
+    return candidates[0];
+  }
+
   candidates.sort((a, b) => Math.abs(a.col - KING_COL) - Math.abs(b.col - KING_COL));
-  return candidates[0];
+  const topCandidates = candidates.slice(0, Math.min(3, candidates.length));
+  return topCandidates[Math.floor(Math.random() * topCandidates.length)];
 }
 
 function findBestMove(fromRow, fromCol) {
@@ -692,10 +1151,13 @@ function updateHintUI() {
     hint.style.color = "var(--hp-red)";
   } else if (gameState.selectedCard !== null) {
     const card = CARDS[gameState.hand[gameState.selectedCard]];
-    if (card.effect === "TRAP") hint.textContent = "🪤 Klik tile kosong buat pasang trap";
-    else if (card.type === "UNIT") hint.textContent = "📍 Klik tile hijau buat summon";
-    else hint.textContent = "📍 Klik target spell";
-    hint.style.color = "#a878c8";
+    if (card) {
+      if (card.effect === "TRAP") hint.textContent = "🪤 Klik tile kosong buat pasang trap";
+      else if (card.effect === "ROW_DAMAGE") hint.textContent = "⚡ Klik tile mana aja — 1 baris kena";
+      else if (card.type === "UNIT") hint.textContent = "📍 Klik tile hijau buat summon";
+      else hint.textContent = "📍 Klik target spell";
+      hint.style.color = "#a878c8";
+    }
   } else if (gameState.selectedUnit) {
     const unit = gameState.board[gameState.selectedUnit.row][gameState.selectedUnit.col];
     if (unit) hint.textContent = `🔵 Gerak · 🔴 Attack (range ${unit.range})`;
@@ -712,7 +1174,7 @@ function updateInfoPanelUI() {
   const deckEl = document.getElementById("info-deck");
   if (deckEl) deckEl.textContent = gameState.deck.length;
   const handEl = document.getElementById("info-hand");
-  if (handEl) handEl.textContent = `${gameState.hand.length}/5`;
+  if (handEl) handEl.textContent = `${gameState.hand.length}/4`;
   const diffEl = document.getElementById("info-diff");
   if (diffEl) {
     const diffLabels = { easy: "Easy", normal: "Normal", hard: "Hard" };

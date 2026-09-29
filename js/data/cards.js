@@ -33,7 +33,7 @@ const CARDS = {
     targetType: "ANY_UNIT",
     color: 0xe67e22,
     icon: "🔥",
-    desc: "4 DMG jarak jauh",
+    desc: "4 DMG 1 target",
   },
   guardian: {
     id: "card_004",
@@ -57,7 +57,7 @@ const CARDS = {
     targetType: "ALLY_UNIT",
     color: 0x2ecc71,
     icon: "💚",
-    desc: "+5 HP ke unit sendiri",
+    desc: "+5 HP ally",
   },
   buff: {
     id: "card_006",
@@ -69,28 +69,63 @@ const CARDS = {
     targetType: "ALLY_UNIT",
     color: 0xf39c12,
     icon: "💪",
-    desc: "+2 ATK ke unit sendiri",
+    desc: "+2 ATK ally",
   },
-  // ===== TRAP =====
   trap: {
     id: "card_007",
     name: "Trap",
     type: "SPELL",
     cost: 2,
     effect: "TRAP",
-    value: 3,
+    value: 4,
     targetType: "EMPTY_TILE",
     color: 0x8b5cf6,
     icon: "🪤",
-    desc: "3 DMG ke musuh lewat",
+    desc: "4 DMG ke musuh lewat",
+  },
+  assassin: {
+    id: "card_008",
+    name: "Assassin",
+    type: "UNIT",
+    cost: 3,
+    hp: 3,
+    attack: 5,
+    range: 1,
+    color: 0x2d3548,
+    icon: "🗡️",
+    desc: "3 HP / 5 ATK",
+  },
+  lightning: {
+    id: "card_009",
+    name: "Lightning",
+    type: "SPELL",
+    cost: 4,
+    effect: "ROW_DAMAGE",
+    value: 2,
+    targetType: "ANY_ROW",
+    color: 0xfbbf24,
+    icon: "⚡",
+    desc: "2 DMG 1 baris musuh",
   },
 };
 
 const DEFAULT_DECK = [
-  "knight", "knight", "knight", "knight",
+  // Knights (5x)
+  "knight", "knight", "knight", "knight", "knight",
+  // Archers (4x)
   "archer", "archer", "archer", "archer",
+  // Guardians (3x)
+  "guardian", "guardian", "guardian",
+  // Assassin (2x)
+  "assassin", "assassin",
+  // Fireball (2x)
   "fireball", "fireball",
-  "guardian", "guardian",
+  // Lightning (1x)
+  "lightning",
+  // Heal (2x)
   "heal", "heal",
-  "trap", "trap", "trap",   // ← 3 trap
+  // Rage (1x)
+  "buff",
+  // Trap (2x)
+  "trap", "trap",
 ];

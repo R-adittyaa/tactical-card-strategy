@@ -22,9 +22,10 @@ const gameState = {
 };
 
 const BOARD_SIZE = 7;
-const KING_COL = 3;           // kolom tengah 7x7
-const PLAYER_KING_ROW = 6;    // baris paling bawah
-const ENEMY_KING_ROW = 0;     // baris paling atas
+const KING_COL = 3;
+const PLAYER_KING_ROW = 6;
+const ENEMY_KING_ROW = 0;
+const HAND_MAX = 4;
 
 function initGameState() {
   const diff = gameSettings.difficulty;
@@ -70,8 +71,8 @@ function initGameState() {
   shuffleArray(gameState.deck);
   shuffleArray(gameState.enemyDeck);
 
-  // Draw 3 kartu awal
-  for (let i = 0; i < 3; i++) drawCardFromDeck();
+  // Fill hand sampai 4 di awal
+  refillHand();
 }
 
 function shuffleArray(arr) {
@@ -81,26 +82,42 @@ function shuffleArray(arr) {
   }
 }
 
-function drawCardFromDeck() {
-  if (gameState.deck.length === 0) {
-    if (gameState.discard.length === 0) return null;
-    gameState.deck = [...gameState.discard];
-    gameState.discard = [];
-    shuffleArray(gameState.deck);
+// ===== REFILL: draw sampai hand penuh (HAND_MAX) =====
+function refillHand() {
+  while (gameState.hand.length < HAND_MAX) {
+    if (gameState.deck.length === 0) {
+      if (gameState.discard.length === 0) return; // gak ada kartu
+      gameState.deck = [...gameState.discard];
+      gameState.discard = [];
+      shuffleArray(gameState.deck);
+    }
+    const card = gameState.deck.pop();
+    if (!card) return;
+    gameState.hand.push(card);
   }
-  if (gameState.hand.length >= 5) return null;
-  gameState.hand.push(gameState.deck.pop());
+}
+
+function refillEnemyHand() {
+  while (gameState.enemyHand.length < HAND_MAX) {
+    if (gameState.enemyDeck.length === 0) {
+      if (gameState.enemyDiscard.length === 0) return;
+      gameState.enemyDeck = [...gameState.enemyDiscard];
+      gameState.enemyDiscard = [];
+      shuffleArray(gameState.enemyDeck);
+    }
+    const card = gameState.enemyDeck.pop();
+    if (!card) return;
+    gameState.enemyHand.push(card);
+  }
+}
+
+// Alias biar gak break code lain
+function drawCardFromDeck() {
+  refillHand();
 }
 
 function drawEnemyCardFromDeck() {
-  if (gameState.enemyDeck.length === 0) {
-    if (gameState.enemyDiscard.length === 0) return;
-    gameState.enemyDeck = [...gameState.enemyDiscard];
-    gameState.enemyDiscard = [];
-    shuffleArray(gameState.enemyDeck);
-  }
-  if (gameState.enemyHand.length >= 5) return;
-  gameState.enemyHand.push(gameState.enemyDeck.pop());
+  refillEnemyHand();
 }
 
 function distance(r1, c1, r2, c2) {

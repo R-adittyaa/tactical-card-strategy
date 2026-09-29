@@ -96,7 +96,7 @@ class BoardScene extends Phaser.Scene {
         let borderWidth = 1;
         let hasState = false;
 
-        // ===== SUMMON AREA — row 4-6 (3 baris bawah) =====
+        // Summon area
         if (selectedIsUnit && row >= 4 && occupant === null) {
           overlay.setFillStyle(0x00d2ff, 0.15);
           borderColor = 0x00d2ff;
@@ -104,29 +104,42 @@ class BoardScene extends Phaser.Scene {
           hasState = true;
         }
 
+        // Trap area
         if (selectedIsTrap && occupant === null) {
-          overlay.setFillStyle(0x8b5cf6, 0.2);
+          overlay.setFillStyle(0x8b5cf6, 0.15);
           borderColor = 0x8b5cf6;
           borderWidth = 2;
           hasState = true;
         }
 
-        if (selectedIsSpell && !selectedIsTrap && occupant) {
+        // Spell target
+        if (selectedIsSpell && !selectedIsTrap) {
           const cardKey = gameState.hand[gameState.selectedCard];
           const card = CARDS[cardKey];
-          if (card.targetType === "ANY_UNIT" && occupant.type !== "KING") {
-            overlay.setFillStyle(0xff3232, 0.2);
-            borderColor = 0xff3232;
-            borderWidth = 2;
-            hasState = true;
-          } else if (card.targetType === "ALLY_UNIT" && occupant.owner === "player" && occupant.type === "UNIT") {
-            overlay.setFillStyle(0x5db85d, 0.2);
-            borderColor = 0x5db85d;
-            borderWidth = 2;
-            hasState = true;
+          if (card) {
+            // Row Damage — highlight seluruh baris
+            if (card.targetType === "ANY_ROW") {
+              overlay.setFillStyle(0xfbbf24, 0.15);
+              borderColor = 0xfbbf24;
+              borderWidth = 2;
+              hasState = true;
+            }
+            // Target unit tunggal
+            else if (card.targetType === "ANY_UNIT" && occupant && occupant.type !== "KING") {
+              overlay.setFillStyle(0xff3232, 0.2);
+              borderColor = 0xff3232;
+              borderWidth = 2;
+              hasState = true;
+            } else if (card.targetType === "ALLY_UNIT" && occupant && occupant.owner === "player" && occupant.type === "UNIT") {
+              overlay.setFillStyle(0x5db85d, 0.2);
+              borderColor = 0x5db85d;
+              borderWidth = 2;
+              hasState = true;
+            }
           }
         }
 
+        // Unit select
         if (selectedUnitPos) {
           if (selectedUnitPos.row === row && selectedUnitPos.col === col) {
             overlay.setFillStyle(0xf4c869, 0.25);
@@ -154,26 +167,7 @@ class BoardScene extends Phaser.Scene {
         tile._stateColor = hasState ? borderColor : null;
         tile.setStrokeStyle(borderWidth, borderColor, 1);
 
-        // ===== TRAP =====
-        if (gameState.traps && gameState.traps.some((t) => t.row === row && t.col === col)) {
-          const trapGlow = this.add.circle(x, y, TILE * 0.3, 0x8b5cf6, 0.15);
-          const trapIcon = this.add.text(x, y, "🪤", {
-            fontSize: `${Math.floor(TILE * 0.4)}px`,
-          }).setOrigin(0.5).setAlpha(0.7);
-
-          this.tweens.add({
-            targets: trapGlow,
-            alpha: { from: 0.1, to: 0.3 },
-            scale: { from: 0.9, to: 1.15 },
-            duration: 1400,
-            yoyo: true,
-            repeat: -1,
-            ease: "Sine.easeInOut",
-          });
-
-          this.boardContainer.add(trapGlow);
-          this.boardContainer.add(trapIcon);
-        }
+        // Trap TIDAK di-render (invisible)
 
         if (occupant) this.renderOccupant(row, col, occupant);
       }
@@ -191,7 +185,7 @@ class BoardScene extends Phaser.Scene {
     let fillColor, strokeColor, glowColor;
     if (occupant.type === "KING") {
       fillColor = occupant.owner === "player" ? 0x3b82f6 : 0xdc2626;
-      strokeColor = occupant.owner === "player" ? 0x60a5fa : 0xf87171;
+      strokeColor = occupant.owner === "player" ? 0x93c5fd : 0xfca5a5;
       glowColor = occupant.owner === "player" ? 0x3b82f6 : 0xdc2626;
     } else {
       fillColor = occupant.owner === "player" ? 0x2563eb : 0xb91c1c;
@@ -202,24 +196,19 @@ class BoardScene extends Phaser.Scene {
     const radius = occupant.type === "KING" ? TILE * 0.42 : TILE * 0.38;
     const isKing = occupant.type === "KING";
 
-    // Outer glow
     const glow = this.add.circle(x, y, radius + 4, glowColor, 0.25);
     allObjs.push(glow);
 
-    // Shadow
     const shadow = this.add.ellipse(x, y + radius * 0.75, radius * 1.7, radius * 0.4, 0x000000, 0.4);
     allObjs.push(shadow);
 
-    // Main circle
     const circle = this.add.circle(x, y, radius, fillColor);
     circle.setStrokeStyle(isKing ? 3 : 2.5, strokeColor, 1);
     allObjs.push(circle);
 
-    // Inner highlight
     const inner = this.add.circle(x, y - radius * 0.3, radius * 0.6, 0xffffff, 0.15);
     allObjs.push(inner);
 
-    // Icon
     let icon = "?";
     if (occupant.type === "KING") {
       icon = "👑";
@@ -228,6 +217,7 @@ class BoardScene extends Phaser.Scene {
       if (nameLower.includes("knight")) icon = "⚔️";
       else if (nameLower.includes("archer")) icon = "🏹";
       else if (nameLower.includes("guardian")) icon = "🛡️";
+      else if (nameLower.includes("assassin")) icon = "🗡️";
       else if (nameLower.includes("wizard") || nameLower.includes("mage")) icon = "🧙";
       else if (nameLower.includes("priest") || nameLower.includes("healer")) icon = "✨";
       else icon = occupant.name[0];
@@ -238,7 +228,6 @@ class BoardScene extends Phaser.Scene {
     }).setOrigin(0.5);
     allObjs.push(iconText);
 
-    // ===== HP BAR (lebih gede) =====
     const barW = radius * 1.9;
     const barH = 6;
     const barY = y + radius + 5;
@@ -267,7 +256,6 @@ class BoardScene extends Phaser.Scene {
     }).setOrigin(0.5);
     allObjs.push(hpText);
 
-    // ===== RANGE BADGE (lebih gede) =====
     if (occupant.type === "UNIT") {
       const badgeX = x - radius * 0.85;
       const badgeY = y - radius * 0.85;
@@ -296,7 +284,6 @@ class BoardScene extends Phaser.Scene {
       });
     }
 
-    // Idle pulse
     const delay = Phaser.Math.Between(0, 800);
     const pulseMax = isKing ? 0.35 : 0.28;
     const pulseMin = isKing ? 0.18 : 0.15;
@@ -315,6 +302,16 @@ class BoardScene extends Phaser.Scene {
       targets: circle,
       scale: { from: 1, to: isKing ? 1.04 : 1.02 },
       duration: isKing ? 1800 : 2000,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+      delay: delay,
+    });
+
+    this.tweens.add({
+      targets: inner,
+      alpha: { from: 0.1, to: 0.2 },
+      duration: 2000,
       yoyo: true,
       repeat: -1,
       ease: "Sine.easeInOut",
