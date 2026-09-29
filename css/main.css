@@ -12,56 +12,53 @@ html, body {
   overflow: hidden;
   background: #0a0d1a;
   color: #e8e3d3;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   user-select: none;
   -webkit-user-select: none;
   touch-action: manipulation;
 }
 
-/* ===== CSS VARIABLES — FANTASY MEDIEVAL ===== */
+/* Emoji fallback */
+.emoji, [class*="icon"] {
+  font-family: 'Noto Color Emoji', 'Segoe UI Emoji', 'Apple Color Emoji', 'Inter', sans-serif;
+}
+
+/* ===== CSS VARIABLES ===== */
 :root {
-  /* Background */
   --bg-deep: #0a0d1a;
   --bg-primary: #131a2e;
   --bg-panel: #1a2238;
   --bg-panel-light: #232c48;
 
-  /* Borders */
   --border-subtle: rgba(212, 162, 74, 0.15);
   --border-strong: rgba(212, 162, 74, 0.4);
 
-  /* Gold — royal */
   --gold: #d4a24a;
   --gold-bright: #f4c869;
   --gold-dark: #8a6b2e;
 
-  /* Status */
   --hp-red: #c93d3d;
   --hp-green: #5db85d;
   --mana-blue: #4a90c9;
   --ap-cyan: #5ec9d4;
+  --orange: #f59e0b;
 
-  /* Text */
   --text-primary: #e8e3d3;
   --text-muted: #9a9484;
   --text-dim: #5c5749;
 
-  /* Font */
   --font-body: 'Inter', sans-serif;
   --font-title: 'Cinzel', serif;
   --font-ui: 'Inter', sans-serif;
 
-  /* Radius */
   --radius: 8px;
   --radius-lg: 14px;
   --radius-sm: 4px;
 
-  /* Shadows */
   --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.4);
   --shadow-medium: 0 8px 24px rgba(0, 0, 0, 0.6);
   --shadow-strong: 0 16px 40px rgba(0, 0, 0, 0.8);
 
-  /* Transitions */
   --transition: 0.2s ease;
 }
 
@@ -92,46 +89,6 @@ html, body {
 ::-webkit-scrollbar-thumb {
   background: var(--border-subtle);
   border-radius: 3px;
-}
-
-/* ===== SCREEN HEADER ===== */
-.screen-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 30px;
-  border-bottom: 1px solid var(--border-subtle);
-  background: rgba(19, 26, 46, 0.7);
-  backdrop-filter: blur(10px);
-}
-
-.screen-header h2 {
-  font-family: var(--font-title);
-  font-size: 1.5rem;
-  color: var(--gold);
-  letter-spacing: 2px;
-  font-weight: 700;
-}
-
-.btn-back {
-  background: var(--bg-panel);
-  color: var(--gold);
-  border: 1px solid var(--border-strong);
-  padding: 10px 20px;
-  border-radius: var(--radius);
-  font-weight: 700;
-  font-family: var(--font-ui);
-  cursor: pointer;
-  font-size: 0.8rem;
-  letter-spacing: 1.5px;
-  transition: var(--transition);
-  text-transform: uppercase;
-}
-
-.btn-back:hover {
-  background: var(--bg-panel-light);
-  border-color: var(--gold-bright);
-  color: var(--gold-bright);
 }
 
 /* ===== HIDDEN ===== */

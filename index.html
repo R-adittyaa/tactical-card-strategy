@@ -8,7 +8,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Inter:wght@400;500;600;700;800&family=Noto+Color+Emoji&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="css/main.css">
   <link rel="stylesheet" href="css/menu.css">
@@ -21,9 +21,31 @@
   <!-- ===== MENU SCREEN ===== -->
   <div id="menu-screen" class="screen active">
     <div class="bg-particles"></div>
+    <div class="bg-glow"></div>
+
     <div class="menu-content">
-      <h1 class="game-title">EXERCIST</h1>
-      <p class="game-subtitle">⚔ &nbsp;TACTICAL CARD STRATEGY&nbsp; ⚔</p>
+      <div class="menu-logo-section">
+        <h1 class="game-title">EXERCIST</h1>
+        <p class="game-subtitle">⚔ &nbsp;TACTICAL CARD STRATEGY&nbsp; ⚔</p>
+        <p class="game-tagline">Roll. Summon. Conquer.</p>
+      </div>
+
+      <div class="hero-preview">
+        <div class="hero-preview-label">HEROES</div>
+        <div class="hero-preview-stage">
+          <div class="hero-preview-card warlord" id="hero-preview-card">
+            <div class="hero-preview-icon">🗡️</div>
+            <div class="hero-preview-name">Warlord</div>
+            <div class="hero-preview-desc">Semua unit +1 ATK</div>
+          </div>
+        </div>
+        <div class="hero-preview-dots" id="hero-preview-dots">
+          <span class="dot active"></span>
+          <span class="dot"></span>
+          <span class="dot"></span>
+        </div>
+      </div>
+
       <div class="menu-buttons">
         <button class="btn btn-play" data-action="play">
           <span class="btn-icon">▶</span>
@@ -38,7 +60,17 @@
           <span class="btn-label">SETTINGS</span>
         </button>
       </div>
-      <p class="menu-footer">v2.0 · Dibuat dengan Phaser.js</p>
+
+      <div class="feature-chips">
+        <div class="feature-chip"><span class="chip-icon">🎭</span><span class="chip-text">3 Random Heroes</span></div>
+        <div class="feature-chip"><span class="chip-icon">🎰</span><span class="chip-text">Gacha Roll</span></div>
+        <div class="feature-chip"><span class="chip-icon">🎯</span><span class="chip-text">7x7 Grid</span></div>
+        <div class="feature-chip"><span class="chip-icon">🃏</span><span class="chip-text">9 Unique Cards</span></div>
+        <div class="feature-chip"><span class="chip-icon">🤖</span><span class="chip-text">Smart AI</span></div>
+        <div class="feature-chip"><span class="chip-icon">🪤</span><span class="chip-text">Hidden Trap</span></div>
+      </div>
+
+      <p class="menu-footer">v3.0 · Gacha Tactical Edition</p>
     </div>
   </div>
 
@@ -54,20 +86,20 @@
         <div class="howto-text"><h3>TUJUAN</h3><p>Hancurin King musuh sebelum King lu dihancurin.</p></div>
       </div>
       <div class="howto-item">
+        <div class="howto-icon">🎭</div>
+        <div class="howto-text"><h3>HERO</h3><p>Tiap match dapet hero random: Warlord, Archmage, atau Merchant.</p></div>
+      </div>
+      <div class="howto-item">
         <div class="howto-icon">⚡</div>
-        <div class="howto-text"><h3>ACTION POINTS</h3><p>AP nambah tiap turn (max 12). Buat main kartu, gerak, attack.</p></div>
+        <div class="howto-text"><h3>ACTION POINTS</h3><p>AP nambah tiap turn. Buat main kartu, gerak, attack.</p></div>
       </div>
       <div class="howto-item">
         <div class="howto-icon">🃏</div>
         <div class="howto-text"><h3>KARTU</h3><p><b>⚔ UNIT</b> = prajurit. <b>✦ SPELL</b> = sihir instant.</p></div>
       </div>
       <div class="howto-item">
-        <div class="howto-icon">🎭</div>
-        <div class="howto-text"><h3>HERO</h3><p>Tiap match dapet hero random dengan efek unik.</p></div>
-      </div>
-      <div class="howto-item">
         <div class="howto-icon">🪤</div>
-        <div class="howto-text"><h3>TRAP</h3><p>Pasang di tile kosong. Musuh lewat = -4 HP.</p></div>
+        <div class="howto-text"><h3>TRAP</h3><p>Pasang di tile kosong. Musuh lewat = damage!</p></div>
       </div>
     </div>
   </div>
@@ -79,6 +111,37 @@
       <button class="btn-back" data-action="back-to-menu">← BACK</button>
     </div>
     <div class="settings-content">
+            <div class="setting-row">
+        <label>🎵 BGM</label>
+        <button id="setting-bgm" class="toggle-btn">ON</button>
+      </div>
+
+      <div class="setting-row">
+        <label>🎚 BGM Volume</label>
+        <div class="slider-wrap">
+          <input type="range" id="setting-bgm-volume" min="0" max="100" value="30">
+          <span id="bgm-volume-value">30%</span>
+        </div>
+      </div>
+
+      <div class="setting-row setting-row-column">
+        <label>🎼 Music Track</label>
+        <div class="song-selector" id="song-selector">
+          <button class="song-btn active" data-track="1">
+            <span class="song-icon">🎵</span>
+            <span class="song-label">Theme 1</span>
+          </button>
+          <button class="song-btn" data-track="2">
+            <span class="song-icon">🎶</span>
+            <span class="song-label">Theme 2</span>
+          </button>
+          <button class="song-btn" data-track="3">
+            <span class="song-icon">🎼</span>
+            <span class="song-label">Theme 3</span>
+          </button>
+        </div>
+      </div>
+      
       <div class="setting-row">
         <label>🔊 Sound</label>
         <button id="setting-sound" class="toggle-btn">ON</button>
@@ -104,8 +167,6 @@
 
   <!-- ===== GAME SCREEN ===== -->
   <div id="game-screen" class="screen">
-
-    <!-- Top HUD -->
     <header class="top-hud">
       <div class="hud-left">
         <div class="game-logo">⚔ EXERCIST</div>
@@ -114,7 +175,6 @@
           <span class="hero-name">Warlord</span>
         </div>
       </div>
-
       <div class="hud-center">
         <div class="hud-stat">
           <span class="hud-label">TURN</span>
@@ -136,32 +196,26 @@
           <span class="hud-value hud-phase" id="stat-phase">YOUR TURN</span>
         </div>
       </div>
-
       <div class="hud-right">
         <button class="btn-hud" id="btn-info" title="Info">ℹ</button>
         <button class="btn-hud" id="btn-menu" title="Menu">☰</button>
       </div>
     </header>
 
-    <!-- Board -->
     <div class="board-wrapper">
       <div id="phaser-board"></div>
     </div>
 
-    <!-- Hint -->
     <p class="game-hint" id="game-hint">💡 Klik kartu atau unit di board</p>
 
-    <!-- Hand -->
     <div class="hand-wrapper">
       <div id="hand" class="hand"></div>
     </div>
 
-    <!-- End Turn -->
     <button class="btn-end-turn-bottom" id="btn-end-turn">
       END TURN <span class="arrow">→</span>
     </button>
 
-    <!-- Info Panel -->
     <div id="info-panel" class="info-panel hidden">
       <h3>📊 GAME INFO</h3>
       <div class="info-row"><span>🎭 Hero</span><b id="info-hero">—</b></div>
@@ -171,14 +225,12 @@
       <div class="info-row dim"><span>🎯 Difficulty</span><b id="info-diff">Normal</b></div>
     </div>
 
-    <!-- Game Over Overlay -->
     <div id="overlay" class="overlay hidden"></div>
 
-    <!-- Hero Draw Overlay -->
+    <!-- Hero Draw Gacha Overlay -->
     <div id="hero-draw-overlay" class="hero-draw-overlay hidden">
       <button id="hero-draw-skip" class="hero-draw-skip">TAP TO SKIP ➔</button>
       <div class="hero-draw-stage">
-        <!-- Player slot (kiri) -->
         <div class="hero-slot hero-slot-player" id="hero-slot-player">
           <div class="hero-slot-card" id="hero-slot-player-card">
             <div class="hero-slot-icon">🎰</div>
@@ -187,10 +239,8 @@
           <div class="hero-slot-label">YOU</div>
         </div>
 
-        <!-- VS -->
         <div class="hero-vs" id="hero-vs">VS</div>
 
-        <!-- Enemy slot (kanan) -->
         <div class="hero-slot hero-slot-enemy" id="hero-slot-enemy">
           <div class="hero-slot-card" id="hero-slot-enemy-card">
             <div class="hero-slot-icon">🎰</div>
@@ -200,6 +250,7 @@
         </div>
       </div>
     </div>
+  </div>
 
   <script src="js/core/settings.js"></script>
   <script src="js/data/cards.js"></script>
