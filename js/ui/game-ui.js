@@ -1,3 +1,26 @@
+// ===== SAFETY: AUTO-RESET isAnimating kalau nyangkut =====
+let _animSafetyTimer = null;
+function _startAnimSafety() {
+  if (_animSafetyTimer) clearTimeout(_animSafetyTimer);
+  _animSafetyTimer = setTimeout(() => {
+    if (gameState.isAnimating) {
+      console.warn("⚠️ isAnimating nyangkut, auto-reset!");
+      gameState.isAnimating = false;
+      renderHandUI();
+      updateHintUI();
+      if (window.boardScene) window.boardScene.refresh();
+    }
+    if (gameState.isAITurn) {
+      console.warn("⚠️ isAITurn nyangkut, auto-reset!");
+      gameState.isAITurn = false;
+      document.getElementById("btn-end-turn").disabled = false;
+      renderHandUI();
+      updateHintUI();
+      if (window.boardScene) window.boardScene.refresh();
+    }
+  }, 6000);
+}
+
 // ===== INIT GAME UI =====
 function initGameUI() {
   initGameState();
@@ -15,6 +38,7 @@ function initGameUI() {
   updateHintUI();
 
   const endBtn = document.getElementById("btn-end-turn");
+  endBtn.disabled = false;
   endBtn.onclick = () => onEndTurnClick();
 
   document.getElementById("btn-info").onclick = () => {
@@ -49,8 +73,10 @@ function renderHandUI() {
     if (isSelected) el.classList.add("selected");
     if (!canAfford) el.classList.add("disabled");
 
+    const badgeText = card.effect === "TRAP" ? "🪤 TRAP" : (isSpell ? "✦ SPELL" : "⚔ UNIT");
+
     el.innerHTML = `
-      <div class="card-badge">${isSpell ? "✦ SPELL" : "⚔ UNIT"}</div>
+      <div class="card-badge">${badgeText}</div>
       <div class="card-name">${card.name}</div>
       <div class="card-icon">${card.icon}</div>
       <div class="card-desc">${card.desc}</div>
@@ -65,7 +91,6 @@ function renderHandUI() {
 // ===== KLIK KARTU =====
 function onCardClick(index) {
   if (gameState.isAITurn || gameState.isGameOver || gameState.isAnimating) return;
-
   playClickSound();
 
   if (gameState.selectedCard === index) {
@@ -150,9 +175,68 @@ function handleCardPlay(row, col) {
   }
 
   if (card.type === "SPELL") {
+    if (card.effect === "TRAP") {
+      handleTrapPlay(row, col, card, cardKey);
+      return;
+    }
     handleSpellPlay(row, col, card, cardKey);
     return;
   }
+}
+
+// ===== TRAP =====
+function handleTrapPlay(row, col, card, cardKey) {
+  if (gameState.board[row][col] !== null) { playClickSound(); return; }
+  if (gameState.traps && gameState.traps.some((t) => t.row === row && t.col === col)) { playClickSound(); return; }
+  if (!gameState.traps) gameState.traps = [];
+
+  gameState.traps.push({ row, col, owner: "player", damage: card.value });
+  gameState.hand.splice(gameState.selectedCard, 1);
+  gameState.discard.push(cardKey);
+  gameState.playerAP -= card.cost;
+  gameState.selectedCard = null;
+
+  playSpellSound();
+  showSpellNotification("🪤", "TRAP SET!", "#8b5cf6");
+  if (window.boardScene) window.boardScene.showFloatingText(row, col, "🪤", "#8b5cf6");
+
+  updateTopBarUI();
+  renderHandUI();
+  updateHintUI();
+  updateInfoPanelUI();
+  if (window.boardScene) window.boardScene.refresh();
+}
+
+function checkTrapAt(row, col, mover) {
+  if (!gameState.traps) return;
+  const idx = gameState.traps.findIndex((t) => t.row === row && t.col === col && t.owner !== mover.owner);
+  if (idx === -1) return;
+
+  const trap = gameState.traps[idx];
+  const victim = gameState.board[row][col];
+  if (!victim) return;
+
+  victim.hp -= trap.damage;
+  playSpellSound();
+
+  if (mover.owner === "enemy") showSpellNotification("🪤", "TRAP! -" + trap.damage, "#ef4444");
+  else showSpellNotification("🪤", "KAMU KENA TRAP! -" + trap.damage, "#ef4444");
+
+  if (window.boardScene) window.boardScene.showFloatingText(row, col, `-${trap.damage}`, "#ef4444");
+
+  gameState.traps.splice(idx, 1);
+
+  if (victim.hp <= 0 && victim.type !== "KING") {
+    gameState.board[row][col] = null;
+    playDeathSound();
+  } else if (victim.type === "KING") {
+    if (victim.owner === "player") gameState.playerKingHP = victim.hp;
+    else gameState.enemyKingHP = victim.hp;
+  }
+
+  updateTopBarUI();
+  checkWinLoss();
+  return true;
 }
 
 // ===== SPELL =====
@@ -164,6 +248,7 @@ function handleSpellPlay(row, col, card, cardKey) {
   if (card.targetType === "ALLY_UNIT" && (target.owner !== "player" || target.type !== "UNIT")) return;
 
   gameState.isAnimating = true;
+  _startAnimSafety();
   playSpellSound();
 
   if (card.effect === "DAMAGE") {
@@ -240,8 +325,10 @@ function handleUnitAction(row, col) {
 // ===== MOVE =====
 function executeMove(fromRow, fromCol, toRow, toCol) {
   gameState.isAnimating = true;
+  _startAnimSafety();
 
-  gameState.board[toRow][toCol] = gameState.board[fromRow][fromCol];
+  const mover = gameState.board[fromRow][fromCol];
+  gameState.board[toRow][toCol] = mover;
   gameState.board[fromRow][fromCol] = null;
   gameState.playerAP -= 1;
 
@@ -255,14 +342,18 @@ function executeMove(fromRow, fromCol, toRow, toCol) {
     window.boardScene.animateSpawn(toRow, toCol);
   }
 
+  const trapped = checkTrapAt(toRow, toCol, mover);
+
   setTimeout(() => {
     gameState.isAnimating = false;
-  }, 300);
+    if (window.boardScene) window.boardScene.refresh();
+  }, trapped ? 500 : 300);
 }
 
 // ===== ATTACK =====
 function executeAttack(fromRow, fromCol, toRow, toCol) {
   gameState.isAnimating = true;
+  _startAnimSafety();
 
   const attacker = gameState.board[fromRow][fromCol];
   const target = gameState.board[toRow][toCol];
@@ -272,9 +363,7 @@ function executeAttack(fromRow, fromCol, toRow, toCol) {
   target.hp -= attacker.attack;
   gameState.playerAP -= 1;
 
-  if (window.boardScene) {
-    window.boardScene.showFloatingText(toRow, toCol, `-${attacker.attack}`, "#ef4444");
-  }
+  if (window.boardScene) window.boardScene.showFloatingText(toRow, toCol, `-${attacker.attack}`, "#ef4444");
 
   if (target.type === "KING") {
     if (target.owner === "enemy") gameState.enemyKingHP = target.hp;
@@ -299,8 +388,16 @@ function executeAttack(fromRow, fromCol, toRow, toCol) {
 
 // ===== END TURN =====
 function onEndTurnClick() {
-  if (gameState.isAITurn || gameState.isGameOver || gameState.isAnimating) return;
+  console.log("🎯 End Turn diklik. isAITurn:", gameState.isAITurn, "isAnimating:", gameState.isAnimating);
 
+  if (gameState.isAITurn || gameState.isGameOver || gameState.isAnimating) {
+    console.warn("⛔ End Turn diblokir:", {
+      isAITurn: gameState.isAITurn,
+      isGameOver: gameState.isGameOver,
+      isAnimating: gameState.isAnimating,
+    });
+    return;
+  }
   playClickSound();
 
   gameState.selectedCard = null;
@@ -350,10 +447,7 @@ function aiDoAction() {
       const card = CARDS[gameState.enemyHand[i]];
       if (card.type === "SPELL" && card.effect === "HEAL") {
         const wounded = enemyUnits.find((u) => u.unit.hp < u.unit.maxHp * 0.5);
-        if (wounded) {
-          aiCastSpell(i, wounded.row, wounded.col, card);
-          return true;
-        }
+        if (wounded) { aiCastSpell(i, wounded.row, wounded.col, card); return true; }
       }
     }
   }
@@ -362,18 +456,12 @@ function aiDoAction() {
     for (const pu of playerUnits) {
       const d = distance(eu.row, eu.col, pu.row, pu.col);
       if (d <= eu.unit.range && d > 0) {
-        if (gameState.enemyAP >= 1) {
-          aiAttack(eu.row, eu.col, pu.row, pu.col);
-          return true;
-        }
+        if (gameState.enemyAP >= 1) { aiAttack(eu.row, eu.col, pu.row, pu.col); return true; }
       }
     }
     const dKing = distance(eu.row, eu.col, 4, 2);
     if (dKing <= eu.unit.range && dKing > 0) {
-      if (gameState.enemyAP >= 1) {
-        aiAttack(eu.row, eu.col, 4, 2);
-        return true;
-      }
+      if (gameState.enemyAP >= 1) { aiAttack(eu.row, eu.col, 4, 2); return true; }
     }
   }
 
@@ -381,20 +469,14 @@ function aiDoAction() {
     const card = CARDS[gameState.enemyHand[i]];
     if (card.type === "UNIT" && card.cost <= gameState.enemyAP) {
       const tile = findEnemySummonTile();
-      if (tile) {
-        aiSummon(i, tile.row, tile.col);
-        return true;
-      }
+      if (tile) { aiSummon(i, tile.row, tile.col); return true; }
     }
   }
 
   for (const eu of enemyUnits) {
     if (gameState.enemyAP >= 1) {
       const move = findBestMove(eu.row, eu.col);
-      if (move) {
-        aiMove(eu.row, eu.col, move.row, move.col);
-        return true;
-      }
+      if (move) { aiMove(eu.row, eu.col, move.row, move.col); return true; }
     }
   }
 
@@ -447,9 +529,14 @@ function aiSummon(handIndex, row, col) {
 }
 
 function aiMove(fromRow, fromCol, toRow, toCol) {
-  gameState.board[toRow][toCol] = gameState.board[fromRow][fromCol];
+  const mover = gameState.board[fromRow][fromCol];
+  gameState.board[toRow][toCol] = mover;
   gameState.board[fromRow][fromCol] = null;
   gameState.enemyAP -= 1;
+  if (window.boardScene) window.boardScene.refresh();
+
+  checkTrapAt(toRow, toCol, mover);
+
   if (window.boardScene) window.boardScene.refresh();
 }
 
@@ -462,9 +549,7 @@ function aiAttack(fromRow, fromCol, toRow, toCol) {
   target.hp -= attacker.attack;
   gameState.enemyAP -= 1;
 
-  if (window.boardScene) {
-    window.boardScene.showFloatingText(toRow, toCol, `-${attacker.attack}`, "#ef4444");
-  }
+  if (window.boardScene) window.boardScene.showFloatingText(toRow, toCol, `-${attacker.attack}`, "#ef4444");
 
   if (target.type === "KING") {
     if (target.owner === "player") gameState.playerKingHP = target.hp;
@@ -538,10 +623,7 @@ function findBestMove(fromRow, fromCol) {
     if (gameState.board[nr][nc] !== null) continue;
 
     const d = distance(nr, nc, 4, 2);
-    if (d < bestDist) {
-      bestDist = d;
-      best = { row: nr, col: nc };
-    }
+    if (d < bestDist) { bestDist = d; best = { row: nr, col: nc }; }
   }
   return best;
 }
@@ -554,19 +636,14 @@ function updateHintUI() {
     hint.style.color = "var(--red)";
   } else if (gameState.selectedCard !== null) {
     const card = CARDS[gameState.hand[gameState.selectedCard]];
-    if (card.type === "UNIT") {
-      hint.textContent = "📍 Klik tile hijau buat summon";
-    } else {
-      hint.textContent = "📍 Klik target spell (orange = damage, hijau = buff/heal)";
-    }
-    hint.style.color = "var(--green)";
+    if (card.effect === "TRAP") hint.textContent = "🪤 Klik tile kosong buat pasang trap";
+    else if (card.type === "UNIT") hint.textContent = "📍 Klik tile hijau buat summon";
+    else hint.textContent = "📍 Klik target spell";
+    hint.style.color = "var(--purple)";
   } else if (gameState.selectedUnit) {
     const unit = gameState.board[gameState.selectedUnit.row][gameState.selectedUnit.col];
-    if (unit) {
-      hint.textContent = `🔵 Biru = gerak (1 tile) · 🔴 Merah = attack range (${unit.range} tile) · Klik unit lagi buat deselect`;
-    } else {
-      hint.textContent = "🔵 Gerak · 🔴 Nyerang";
-    }
+    if (unit) hint.textContent = `🔵 Gerak · 🔴 Attack (range ${unit.range})`;
+    else hint.textContent = "🔵 Gerak · 🔴 Nyerang";
     hint.style.color = "var(--gold)";
   } else {
     hint.textContent = "💡 Klik kartu atau unit di board";
@@ -577,14 +654,12 @@ function updateHintUI() {
 // ===== INFO PANEL =====
 function updateInfoPanelUI() {
   document.getElementById("info-deck").textContent = gameState.deck.length;
-  document.getElementById("info-enemy-deck").textContent = gameState.enemyDeck.length;
   document.getElementById("info-hand").textContent = `${gameState.hand.length}/5`;
-  document.getElementById("info-enemy-hand").textContent = `${gameState.enemyHand.length}/5`;
   const diffLabels = { easy: "Easy", normal: "Normal", hard: "Hard" };
   document.getElementById("info-diff").textContent = diffLabels[gameSettings.difficulty];
 }
 
-// ===== SOUNDS — pakai AudioManager (HTML5 audio) =====
+// ===== SOUNDS =====
 function playClickSound()  { AudioManager.play("click"); }
 function playAttackSound() { AudioManager.play("attack"); }
 function playSpellSound()  { AudioManager.play("spell"); }

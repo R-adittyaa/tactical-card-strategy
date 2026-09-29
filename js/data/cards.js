@@ -71,6 +71,19 @@ const CARDS = {
     icon: "💪",
     desc: "+2 ATK ke unit sendiri",
   },
+  // ===== TRAP =====
+  trap: {
+    id: "card_007",
+    name: "Trap",
+    type: "SPELL",
+    cost: 2,
+    effect: "TRAP",
+    value: 3,
+    targetType: "EMPTY_TILE",
+    color: 0x8b5cf6,
+    icon: "🪤",
+    desc: "3 DMG ke musuh lewat",
+  },
 };
 
 const DEFAULT_DECK = [
@@ -79,5 +92,5 @@ const DEFAULT_DECK = [
   "fireball", "fireball",
   "guardian", "guardian",
   "heal", "heal",
-  "buff",
+  "trap", "trap", "trap",   // ← 3 trap
 ];

@@ -14,6 +14,7 @@ const gameState = {
   enemyDiscard: [],
   selectedCard: null,
   selectedUnit: null,
+  traps: [],
   isAITurn: false,
   isGameOver: false,
   isAnimating: false,
@@ -31,14 +32,15 @@ function initGameState() {
   gameState.enemyKingHP = kingHP;
   gameState.maxKingHP = kingHP;
   gameState.board = [];
-  gameState.deck = [];
   gameState.hand = [];
   gameState.discard = [];
+  gameState.deck = [];
   gameState.enemyDeck = [];
   gameState.enemyHand = [];
   gameState.enemyDiscard = [];
   gameState.selectedCard = null;
   gameState.selectedUnit = null;
+  gameState.traps = [];
   gameState.isAITurn = false;
   gameState.isGameOver = false;
   gameState.isAnimating = false;
@@ -59,7 +61,7 @@ function initGameState() {
   shuffleArray(gameState.deck);
   shuffleArray(gameState.enemyDeck);
 
-  // Draw 3 awal
+  // Draw 3 kartu awal
   for (let i = 0; i < 3; i++) drawCardFromDeck();
 }
 
@@ -96,7 +98,7 @@ function distance(r1, c1, r2, c2) {
   return Math.abs(r1 - r2) + Math.abs(c1 - c2);
 }
 
-// Auto-init kalau belum ada board
+// Auto-init
 if (!gameState.board || gameState.board.length === 0) {
   initGameState();
 }

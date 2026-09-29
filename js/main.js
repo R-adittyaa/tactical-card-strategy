@@ -1,3 +1,4 @@
+// ===== PHASER INIT =====
 let game;
 
 window.addEventListener("load", () => {
@@ -9,29 +10,67 @@ window.addEventListener("load", () => {
     return;
   }
 
+  const vh = window.innerHeight;
+  const vw = window.innerWidth;
+
+  // Reserved: top bar + hint + hand + end turn
+  let reservedH;
+  if (vh < 500) {
+    reservedH = 280;
+  } else if (vh < 600) {
+    reservedH = 300;   // ← naik dari 280, King player gak ketutup
+  } else if (vh < 700) {
+    reservedH = 320;
+  } else if (vh < 800) {
+    reservedH = 350;
+  } else {
+    reservedH = 400;
+  }
+
+  const reservedW = 40;
+
+  const availableSize = Math.min(vh - reservedH, vw - reservedW);
+  const minCanvas = 200;
+  const maxCanvas = 800;
+  const canvasSize = Math.max(minCanvas, Math.min(availableSize, maxCanvas));
+
+  console.log("Viewport:", vw, "x", vh);
+  console.log("Reserved:", reservedH);
+  console.log("Available:", availableSize);
+  console.log("Canvas size:", canvasSize);
+
   game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: "phaser-board",
-    width: 424,
-    height: 424,
-    backgroundColor: "#0a0e1a",
+    width: canvasSize,
+    height: canvasSize,
+    backgroundColor: "#0f172a",
     scene: [BootScene, BoardScene],
     scale: {
       mode: Phaser.Scale.NONE,
       autoCenter: Phaser.Scale.NO_CENTER,
-      width: 424,
-      height: 424,
+      width: canvasSize,
+      height: canvasSize,
     },
-    audio: {
-      disableWebAudio: true,
-      noAudio: false,
+    render: {
+      antialias: true,
+      pixelArt: false,
+      roundPixels: false,
     },
+    audio: { disableWebAudio: true, noAudio: false },
   });
 
   console.log("Phaser initialized:", game);
 
   initMenu();
-
-  // Init audio manager
   setTimeout(() => AudioManager.init(), 500);
+});
+
+// Resize handler
+let resizeTimeout;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(() => {
+    window.location.reload();
+  }, 500);
 });

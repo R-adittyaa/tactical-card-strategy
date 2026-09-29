@@ -54,20 +54,20 @@
         <div class="howto-text"><h3>TUJUAN</h3><p>Hancurin King musuh (HP 20) sebelum King lu dihancurin.</p></div>
       </div>
       <div class="howto-item">
-        <div class="howto-icon">⚡</div>
-        <div class="howto-text"><h3>ACTION POINTS</h3><p>AP nambah tiap turn (Turn 1 = 3, Turn 2 = 4, dst, max 10).</p></div>
+        <div class="howto-icon">💰</div>
+        <div class="howto-text"><h3>GOLD</h3><p>+5 gold per turn. Interest +1 per 10 gold disimpen. Beli kartu di shop.</p></div>
       </div>
       <div class="howto-item">
-        <div class="howto-icon">🃏</div>
-        <div class="howto-text"><h3>KARTU</h3><p><b>⚔ UNIT</b> = prajurit (ada HP, ATK, range).<br><b>✦ SPELL</b> = sihir instant dari jauh.</p></div>
+        <div class="howto-icon">🛒</div>
+        <div class="howto-text"><h3>SHOP</h3><p>5 kartu random muncul tiap turn. Beli = cost × 2. Roll = -2G.</p></div>
+      </div>
+      <div class="howto-item">
+        <div class="howto-icon">⚡</div>
+        <div class="howto-text"><h3>ACTION POINTS</h3><p>AP nambah tiap turn (max 10). Buat main kartu, gerak, attack.</p></div>
       </div>
       <div class="howto-item">
         <div class="howto-icon">🎮</div>
-        <div class="howto-text"><h3>CARA MAIN</h3><p>Klik kartu → klik tile nyala → eksekusi. Klik END TURN kalau selesai.</p></div>
-      </div>
-      <div class="howto-item">
-        <div class="howto-icon">🏃</div>
-        <div class="howto-text"><h3>UNIT</h3><p>Klik unit → <b style="color:#38bdf8">biru</b> = gerak, <b style="color:#ef4444">merah</b> = nyerang.</p></div>
+        <div class="howto-text"><h3>CARA MAIN</h3><p>Beli kartu → main ke board → gerak/attack → END TURN.</p></div>
       </div>
     </div>
   </div>
@@ -129,13 +129,13 @@
       </div>
     </div>
 
-    <!-- Board (canvas Phaser di sini) -->
+    <!-- Board -->
     <div class="board-wrapper">
       <div id="phaser-board"></div>
     </div>
 
     <!-- Hint -->
-    <p class="game-hint" id="game-hint">💡 Klik kartu atau unit</p>
+    <p class="game-hint" id="game-hint">💡 Beli kartu di shop</p>
 
     <!-- Hand -->
     <div class="hand-wrapper">
@@ -150,26 +150,24 @@
     <!-- Info Panel (floating) -->
     <div id="info-panel" class="info-panel hidden">
       <h3>📊 GAME INFO</h3>
-      <div class="info-row"><span>🃏 Your Deck</span><b id="info-deck">15</b></div>
-      <div class="info-row"><span>🃏 Enemy Deck</span><b id="info-enemy-deck">15</b></div>
-      <div class="info-row"><span>✋ Your Hand</span><b id="info-hand">3/5</b></div>
-      <div class="info-row"><span>✋ Enemy Hand</span><b id="info-enemy-hand">0/5</b></div>
+      <div class="info-row"><span>🃏 Deck</span><b id="info-deck">15</b></div>
+      <div class="info-row"><span>✋ Hand</span><b id="info-hand">3/5</b></div>
       <div class="info-divider"></div>
       <div class="info-row dim"><span>🎯 Difficulty</span><b id="info-diff">Normal</b></div>
     </div>
 
-    <!-- Overlay (game over) -->
+    <!-- Overlay -->
     <div id="overlay" class="overlay hidden"></div>
   </div>
 
   <script src="js/core/settings.js"></script>
-<script src="js/data/cards.js"></script>
-<script src="js/core/game-state.js"></script>
-<script src="js/core/audio.js"></script>          <!-- HARUS ADA DI SINI -->
-<script src="js/scenes/BootScene.js"></script>
-<script src="js/scenes/BoardScene.js"></script>
-<script src="js/ui/menu.js"></script>
-<script src="js/ui/game-ui.js"></script>
-<script src="js/main.js"></script>
+  <script src="js/data/cards.js"></script>
+  <script src="js/core/game-state.js"></script>
+  <script src="js/core/audio.js"></script>
+  <script src="js/scenes/BootScene.js"></script>
+  <script src="js/scenes/BoardScene.js"></script>
+  <script src="js/ui/menu.js"></script>
+  <script src="js/ui/game-ui.js"></script>
+  <script src="js/main.js"></script>
 </body>
 </html>

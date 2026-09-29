@@ -4,16 +4,17 @@ class BootScene extends Phaser.Scene {
   }
 
   preload() {
-  this.load.audio("click", "assets/sfx/click.mp3");
-  this.load.audio("attack", "assets/sfx/attack.mp3");
-  this.load.audio("spell", "assets/sfx/spell.mp3");
-  this.load.audio("death", "assets/sfx/death.mp3");
-  this.load.audio("turn", "assets/sfx/turn.mp3");
-}
+    console.log("Preloading SFX...");
+
+    this.load.audio("click", "assets/sfx/click.mp3");
+    this.load.audio("attack", "assets/sfx/attack.mp3");
+    this.load.audio("spell", "assets/sfx/spell.mp3");
+    this.load.audio("death", "assets/sfx/death.mp3");
+    this.load.audio("turn", "assets/sfx/turn.mp3");
+  }
 
   create() {
     console.log("BootScene.create() dipanggil!");
-    // PENTING: pindah ke BoardScene
     this.scene.start("BoardScene");
   }
 }
