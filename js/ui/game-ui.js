@@ -21,6 +21,44 @@ function _startAnimSafety() {
   }, 6000);
 }
 
+// ===== MATCH TIMER =====
+let _matchTimerInterval = null;
+let _matchStartTime = null;
+
+function _startMatchTimer() {
+  if (_matchTimerInterval) clearInterval(_matchTimerInterval);
+  _matchStartTime = Date.now();
+  _matchTimerInterval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - _matchStartTime) / 1000);
+    const min = String(Math.floor(elapsed / 60)).padStart(2, "0");
+    const sec = String(elapsed % 60).padStart(2, "0");
+    const el = document.getElementById("stat-timer");
+    if (el) el.textContent = `${min}:${sec}`;
+  }, 1000);
+}
+
+function _stopMatchTimer() {
+  if (_matchTimerInterval) {
+    clearInterval(_matchTimerInterval);
+    _matchTimerInterval = null;
+  }
+}
+
+function _updatePhaseIndicator() {
+  const el = document.getElementById("stat-phase");
+  if (!el) return;
+  if (gameState.isGameOver) {
+    el.textContent = "GAME OVER";
+    el.style.color = "var(--text-dim)";
+  } else if (gameState.isAITurn) {
+    el.textContent = "ENEMY TURN";
+    el.style.color = "var(--hp-red)";
+  } else {
+    el.textContent = "YOUR TURN";
+    el.style.color = "var(--hp-green)";
+  }
+}
+
 // ===== INIT GAME UI =====
 function initGameUI() {
   initGameState();
@@ -46,14 +84,30 @@ function initGameUI() {
     updateInfoPanelUI();
     playClickSound();
   };
+
+  const menuBtn = document.getElementById("btn-menu");
+  if (menuBtn) {
+    menuBtn.onclick = () => {
+      if (confirm("Kembali ke menu utama?")) {
+        _stopMatchTimer();
+        backToMenu();
+      }
+    };
+  }
+
+  _startMatchTimer();
+  _updatePhaseIndicator();
 }
 
 // ===== TOP BAR =====
 function updateTopBarUI() {
   document.getElementById("stat-turn").textContent = gameState.turn;
-  document.getElementById("stat-ap").textContent = gameState.playerAP;
-  document.getElementById("stat-player-hp").textContent = gameState.playerKingHP;
-  document.getElementById("stat-enemy-hp").textContent = gameState.enemyKingHP;
+  const apEl = document.getElementById("stat-ap");
+  if (apEl) apEl.textContent = gameState.playerAP;
+  const pEl = document.getElementById("stat-player-hp");
+  if (pEl) pEl.textContent = gameState.playerKingHP;
+  const eEl = document.getElementById("stat-enemy-hp");
+  if (eEl) eEl.textContent = gameState.enemyKingHP;
 }
 
 // ===== HAND =====
@@ -141,8 +195,7 @@ function handleCardPlay(row, col) {
   }
 
   if (card.type === "UNIT") {
-    if (row < 3 || gameState.board[row][col] !== null) {
-      playClickSound();
+    if (row < 4 || gameState.board[row][col] !== null) {      playClickSound();
       return;
     }
 
@@ -415,7 +468,8 @@ function onEndTurnClick() {
 // ===== AI =====
 function runAITurn() {
   gameState.isAITurn = true;
-  gameState.enemyAP = Math.min(gameState.turn + 2 + gameState.aiBonusAP, 10);
+  _updatePhaseIndicator();
+  gameState.enemyAP = Math.min(gameState.turn + 3 + gameState.aiBonusAP, 12);
   drawEnemyCardFromDeck();
 
   document.getElementById("btn-end-turn").disabled = true;
@@ -427,7 +481,7 @@ function runAITurn() {
 
 function aiStep(stepNum) {
   if (gameState.isGameOver) { endAITurn(); return; }
-  if (stepNum > 20) { endAITurn(); return; }
+  if (stepNum > 40) { endAITurn(); return; }
 
   const acted = aiDoAction();
 
@@ -459,9 +513,9 @@ function aiDoAction() {
         if (gameState.enemyAP >= 1) { aiAttack(eu.row, eu.col, pu.row, pu.col); return true; }
       }
     }
-    const dKing = distance(eu.row, eu.col, 4, 2);
+    const dKing = distance(eu.row, eu.col, PLAYER_KING_ROW, KING_COL);
     if (dKing <= eu.unit.range && dKing > 0) {
-      if (gameState.enemyAP >= 1) { aiAttack(eu.row, eu.col, 4, 2); return true; }
+      if (gameState.enemyAP >= 1) { aiAttack(eu.row, eu.col, PLAYER_KING_ROW, KING_COL); return true; }
     }
   }
 
@@ -571,7 +625,7 @@ function endAITurn() {
 
   gameState.isAITurn = false;
   gameState.turn++;
-  gameState.playerAP = Math.min(gameState.turn + 2, 10);
+  gameState.playerAP = Math.min(gameState.turn + 3, 12);
   drawCardFromDeck();
 
   document.getElementById("btn-end-turn").disabled = false;
@@ -583,13 +637,14 @@ function endAITurn() {
 
   showTurnBanner("YOUR TURN");
   playTurnSound();
+  _updatePhaseIndicator();
 }
 
 // ===== HELPERS =====
 function getUnitsByOwner(owner) {
   const units = [];
-  for (let r = 0; r < 5; r++) {
-    for (let c = 0; c < 5; c++) {
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
       const o = gameState.board[r][c];
       if (o && o.owner === owner && o.type === "UNIT") {
         units.push({ row: r, col: c, unit: o });
@@ -602,27 +657,27 @@ function getUnitsByOwner(owner) {
 function findEnemySummonTile() {
   const candidates = [];
   for (let r = 0; r <= 1; r++) {
-    for (let c = 0; c < 5; c++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
       if (gameState.board[r][c] === null) candidates.push({ row: r, col: c });
     }
   }
   if (candidates.length === 0) return null;
-  candidates.sort((a, b) => Math.abs(a.col - 2) - Math.abs(b.col - 2));
+  candidates.sort((a, b) => Math.abs(a.col - KING_COL) - Math.abs(b.col - KING_COL));
   return candidates[0];
 }
 
 function findBestMove(fromRow, fromCol) {
   const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
   let best = null;
-  let bestDist = distance(fromRow, fromCol, 4, 2);
+  let bestDist = distance(fromRow, fromCol, PLAYER_KING_ROW, KING_COL);
 
   for (const [dr, dc] of dirs) {
     const nr = fromRow + dr;
     const nc = fromCol + dc;
-    if (nr < 0 || nr > 4 || nc < 0 || nc > 4) continue;
+    if (nr < 0 || nr >= BOARD_SIZE || nc < 0 || nc >= BOARD_SIZE) continue;
     if (gameState.board[nr][nc] !== null) continue;
 
-    const d = distance(nr, nc, 4, 2);
+    const d = distance(nr, nc, PLAYER_KING_ROW, KING_COL);
     if (d < bestDist) { bestDist = d; best = { row: nr, col: nc }; }
   }
   return best;
@@ -631,15 +686,16 @@ function findBestMove(fromRow, fromCol) {
 // ===== HINT =====
 function updateHintUI() {
   const hint = document.getElementById("game-hint");
+  if (!hint) return;
   if (gameState.isAITurn) {
     hint.textContent = "⏳ Enemy is thinking...";
-    hint.style.color = "var(--red)";
+    hint.style.color = "var(--hp-red)";
   } else if (gameState.selectedCard !== null) {
     const card = CARDS[gameState.hand[gameState.selectedCard]];
     if (card.effect === "TRAP") hint.textContent = "🪤 Klik tile kosong buat pasang trap";
     else if (card.type === "UNIT") hint.textContent = "📍 Klik tile hijau buat summon";
     else hint.textContent = "📍 Klik target spell";
-    hint.style.color = "var(--purple)";
+    hint.style.color = "#a878c8";
   } else if (gameState.selectedUnit) {
     const unit = gameState.board[gameState.selectedUnit.row][gameState.selectedUnit.col];
     if (unit) hint.textContent = `🔵 Gerak · 🔴 Attack (range ${unit.range})`;
@@ -653,10 +709,15 @@ function updateHintUI() {
 
 // ===== INFO PANEL =====
 function updateInfoPanelUI() {
-  document.getElementById("info-deck").textContent = gameState.deck.length;
-  document.getElementById("info-hand").textContent = `${gameState.hand.length}/5`;
-  const diffLabels = { easy: "Easy", normal: "Normal", hard: "Hard" };
-  document.getElementById("info-diff").textContent = diffLabels[gameSettings.difficulty];
+  const deckEl = document.getElementById("info-deck");
+  if (deckEl) deckEl.textContent = gameState.deck.length;
+  const handEl = document.getElementById("info-hand");
+  if (handEl) handEl.textContent = `${gameState.hand.length}/5`;
+  const diffEl = document.getElementById("info-diff");
+  if (diffEl) {
+    const diffLabels = { easy: "Easy", normal: "Normal", hard: "Hard" };
+    diffEl.textContent = diffLabels[gameSettings.difficulty];
+  }
 }
 
 // ===== SOUNDS =====
@@ -698,6 +759,8 @@ function checkWinLoss() {
 
 function showGameOver(title, message) {
   gameState.isGameOver = true;
+  _stopMatchTimer();
+  _updatePhaseIndicator();
   document.getElementById("btn-end-turn").disabled = true;
 
   const overlay = document.getElementById("overlay");
@@ -721,6 +784,7 @@ function restartGame() {
 
 function backToMenu() {
   document.getElementById("overlay").classList.add("hidden");
+  _stopMatchTimer();
   document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
   document.getElementById("menu-screen").classList.add("active");
 }

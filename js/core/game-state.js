@@ -2,9 +2,9 @@ const gameState = {
   turn: 1,
   playerAP: 3,
   enemyAP: 0,
-  playerKingHP: 20,
-  enemyKingHP: 20,
-  maxKingHP: 20,
+  playerKingHP: 25,
+  enemyKingHP: 25,
+  maxKingHP: 25,
   board: [],
   deck: [],
   hand: [],
@@ -21,9 +21,14 @@ const gameState = {
   aiBonusAP: 0,
 };
 
+const BOARD_SIZE = 7;
+const KING_COL = 3;           // kolom tengah 7x7
+const PLAYER_KING_ROW = 6;    // baris paling bawah
+const ENEMY_KING_ROW = 0;     // baris paling atas
+
 function initGameState() {
   const diff = gameSettings.difficulty;
-  const kingHP = diff === "easy" ? 15 : diff === "hard" ? 25 : 20;
+  const kingHP = diff === "easy" ? 18 : diff === "hard" ? 30 : 25;
 
   gameState.turn = 1;
   gameState.playerAP = 3;
@@ -46,14 +51,18 @@ function initGameState() {
   gameState.isAnimating = false;
   gameState.aiBonusAP = diff === "hard" ? 2 : 0;
 
-  // Board
-  for (let row = 0; row < 5; row++) {
+  // Board 7x7
+  for (let row = 0; row < BOARD_SIZE; row++) {
     const rowArr = [];
-    for (let col = 0; col < 5; col++) rowArr.push(null);
+    for (let col = 0; col < BOARD_SIZE; col++) rowArr.push(null);
     gameState.board.push(rowArr);
   }
-  gameState.board[0][2] = { type: "KING", owner: "enemy", hp: kingHP, maxHp: kingHP, name: "Enemy King" };
-  gameState.board[4][2] = { type: "KING", owner: "player", hp: kingHP, maxHp: kingHP, name: "Your King" };
+  gameState.board[ENEMY_KING_ROW][KING_COL] = {
+    type: "KING", owner: "enemy", hp: kingHP, maxHp: kingHP, name: "Enemy King"
+  };
+  gameState.board[PLAYER_KING_ROW][KING_COL] = {
+    type: "KING", owner: "player", hp: kingHP, maxHp: kingHP, name: "Your King"
+  };
 
   // Decks
   gameState.deck = [...DEFAULT_DECK];

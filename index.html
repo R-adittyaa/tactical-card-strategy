@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#050810">
+  <meta name="theme-color" content="#0a0d1a">
   <title>Exercist — Tactical Card Strategy</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="css/main.css">
   <link rel="stylesheet" href="css/menu.css">
@@ -51,23 +51,23 @@
     <div class="howto-content">
       <div class="howto-item">
         <div class="howto-icon">🎯</div>
-        <div class="howto-text"><h3>TUJUAN</h3><p>Hancurin King musuh (HP 20) sebelum King lu dihancurin.</p></div>
-      </div>
-      <div class="howto-item">
-        <div class="howto-icon">💰</div>
-        <div class="howto-text"><h3>GOLD</h3><p>+5 gold per turn. Interest +1 per 10 gold disimpen. Beli kartu di shop.</p></div>
-      </div>
-      <div class="howto-item">
-        <div class="howto-icon">🛒</div>
-        <div class="howto-text"><h3>SHOP</h3><p>5 kartu random muncul tiap turn. Beli = cost × 2. Roll = -2G.</p></div>
+        <div class="howto-text"><h3>TUJUAN</h3><p>Hancurin King musuh sebelum King lu dihancurin.</p></div>
       </div>
       <div class="howto-item">
         <div class="howto-icon">⚡</div>
-        <div class="howto-text"><h3>ACTION POINTS</h3><p>AP nambah tiap turn (max 10). Buat main kartu, gerak, attack.</p></div>
+        <div class="howto-text"><h3>ACTION POINTS</h3><p>AP nambah tiap turn (max 12). Buat main kartu, gerak, attack.</p></div>
+      </div>
+      <div class="howto-item">
+        <div class="howto-icon">🃏</div>
+        <div class="howto-text"><h3>KARTU</h3><p><b>⚔ UNIT</b> = prajurit. <b>✦ SPELL</b> = sihir instant.</p></div>
       </div>
       <div class="howto-item">
         <div class="howto-icon">🎮</div>
-        <div class="howto-text"><h3>CARA MAIN</h3><p>Beli kartu → main ke board → gerak/attack → END TURN.</p></div>
+        <div class="howto-text"><h3>CARA MAIN</h3><p>Klik kartu → klik tile → eksekusi. END TURN kalau selesai.</p></div>
+      </div>
+      <div class="howto-item">
+        <div class="howto-icon">🪤</div>
+        <div class="howto-text"><h3>TRAP</h3><p>Pasang di tile kosong. Musuh lewat = -4 HP.</p></div>
       </div>
     </div>
   </div>
@@ -98,36 +98,46 @@
           <button class="diff-btn" data-diff="hard">HARD</button>
         </div>
       </div>
-      <p id="difficulty-desc" class="difficulty-desc">Balance. King HP 20. Recommended.</p>
+      <p id="difficulty-desc" class="difficulty-desc">Balance. King HP 25. Recommended.</p>
     </div>
   </div>
 
   <!-- ===== GAME SCREEN ===== -->
   <div id="game-screen" class="screen">
-    <!-- Top Bar -->
-    <div class="game-topbar">
-      <div class="topbar-left">
-        <div class="stat-item">
-          <span class="stat-label">TURN</span>
-          <span class="stat-value" id="stat-turn">1</span>
+
+    <!-- Top HUD -->
+    <header class="top-hud">
+      <div class="hud-left">
+        <div class="game-logo">⚔ EXERCIST</div>
+      </div>
+
+      <div class="hud-center">
+        <div class="hud-stat">
+          <span class="hud-label">TURN</span>
+          <span class="hud-value" id="stat-turn">1</span>
         </div>
-        <div class="stat-item">
-          <span class="stat-label">AP</span>
-          <span class="stat-value green" id="stat-ap">3</span>
+        <div class="hud-divider"></div>
+        <div class="hud-stat">
+          <span class="hud-label">⚡ AP</span>
+          <span class="hud-value" id="stat-ap">3</span>
         </div>
-        <div class="stat-item">
-          <span class="stat-label">👑 YOU</span>
-          <span class="stat-value red" id="stat-player-hp">20</span>
+        <div class="hud-divider"></div>
+        <div class="hud-stat">
+          <span class="hud-label">⏱ TIME</span>
+          <span class="hud-value" id="stat-timer">00:00</span>
         </div>
-        <div class="stat-item">
-          <span class="stat-label">👑 ENEMY</span>
-          <span class="stat-value red" id="stat-enemy-hp">20</span>
+        <div class="hud-divider"></div>
+        <div class="hud-stat">
+          <span class="hud-label">PHASE</span>
+          <span class="hud-value hud-phase" id="stat-phase">YOUR TURN</span>
         </div>
       </div>
-      <div class="topbar-right">
-        <button class="btn-icon-only" id="btn-info" title="Info">ℹ</button>
+
+      <div class="hud-right">
+        <button class="btn-hud" id="btn-info" title="Info">ℹ</button>
+        <button class="btn-hud" id="btn-menu" title="Menu">☰</button>
       </div>
-    </div>
+    </header>
 
     <!-- Board -->
     <div class="board-wrapper">
@@ -135,7 +145,7 @@
     </div>
 
     <!-- Hint -->
-    <p class="game-hint" id="game-hint">💡 Beli kartu di shop</p>
+    <p class="game-hint" id="game-hint">💡 Klik kartu atau unit di board</p>
 
     <!-- Hand -->
     <div class="hand-wrapper">
@@ -147,10 +157,10 @@
       END TURN <span class="arrow">→</span>
     </button>
 
-    <!-- Info Panel (floating) -->
+    <!-- Info Panel -->
     <div id="info-panel" class="info-panel hidden">
       <h3>📊 GAME INFO</h3>
-      <div class="info-row"><span>🃏 Deck</span><b id="info-deck">15</b></div>
+      <div class="info-row"><span>🃏 Deck</span><b id="info-deck">20</b></div>
       <div class="info-row"><span>✋ Hand</span><b id="info-hand">3/5</b></div>
       <div class="info-divider"></div>
       <div class="info-row dim"><span>🎯 Difficulty</span><b id="info-diff">Normal</b></div>

@@ -10,47 +10,36 @@ window.addEventListener("load", () => {
     return;
   }
 
-  const vh = window.innerHeight;
-  const vw = window.innerWidth;
+  // Hitung ukuran canvas dari WRAPPER-nya (bukan window)
+  // Karena wrapper pakai flex: 1, dia udah dapet size correct dari flexbox
+  function getBoardSize() {
+    const wrapper = boardEl.parentElement; // .board-wrapper
+    if (!wrapper) return 400;
 
-  // Reserved: top bar + hint + hand + end turn
-  let reservedH;
-  if (vh < 500) {
-    reservedH = 280;
-  } else if (vh < 600) {
-    reservedH = 300;   // ← naik dari 280, King player gak ketutup
-  } else if (vh < 700) {
-    reservedH = 320;
-  } else if (vh < 800) {
-    reservedH = 350;
-  } else {
-    reservedH = 400;
+    // Ambil ukuran wrapper minus padding (24px total)
+    const w = wrapper.clientWidth - 24;
+    const h = wrapper.clientHeight - 24;
+
+    // Board square: ambil yang terkecil
+    const size = Math.max(280, Math.min(w, h, 800));
+    return Math.floor(size);
   }
 
-  const reservedW = 40;
-
-  const availableSize = Math.min(vh - reservedH, vw - reservedW);
-  const minCanvas = 200;
-  const maxCanvas = 800;
-  const canvasSize = Math.max(minCanvas, Math.min(availableSize, maxCanvas));
-
-  console.log("Viewport:", vw, "x", vh);
-  console.log("Reserved:", reservedH);
-  console.log("Available:", availableSize);
-  console.log("Canvas size:", canvasSize);
+  const initialSize = getBoardSize();
+  console.log("Initial board size:", initialSize);
 
   game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: "phaser-board",
-    width: canvasSize,
-    height: canvasSize,
+    width: initialSize,
+    height: initialSize,
     backgroundColor: "#0f172a",
     scene: [BootScene, BoardScene],
     scale: {
       mode: Phaser.Scale.NONE,
       autoCenter: Phaser.Scale.NO_CENTER,
-      width: canvasSize,
-      height: canvasSize,
+      width: initialSize,
+      height: initialSize,
     },
     render: {
       antialias: true,
@@ -64,13 +53,29 @@ window.addEventListener("load", () => {
 
   initMenu();
   setTimeout(() => AudioManager.init(), 500);
-});
 
-// Resize handler
-let resizeTimeout;
-window.addEventListener("resize", () => {
-  clearTimeout(resizeTimeout);
-  resizeTimeout = setTimeout(() => {
-    window.location.reload();
-  }, 500);
+  // ===== RESIZE HANDLER =====
+  // Kalau wrapper berubah ukuran, re-init canvas
+  let resizeTimer = null;
+  const resizeObserver = new ResizeObserver(() => {
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      const newSize = getBoardSize();
+      if (Math.abs(newSize - game.scale.width) > 20) {
+        console.log("Resize detected:", newSize);
+        game.scale.resize(newSize, newSize);
+        if (window.boardScene) {
+          const canvasW = window.boardScene.scale.width;
+          window.boardScene.GAP = 5;
+          window.boardScene.TILE = Math.floor(
+            (canvasW - 12 - 6 * window.boardScene.GAP) / 7
+          );
+          window.boardScene.refresh();
+        }
+      }
+    }, 300);
+  });
+
+  const wrapper = boardEl.parentElement;
+  if (wrapper) resizeObserver.observe(wrapper);
 });
