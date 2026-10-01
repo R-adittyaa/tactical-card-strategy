@@ -47,9 +47,15 @@
       </div>
 
       <div class="menu-buttons">
-        <button class="btn btn-play" data-action="play">
-          <span class="btn-icon">▶</span>
-          <span class="btn-label">PLAY</span>
+        <button class="btn btn-solo" data-action="play-solo">
+          <span class="btn-icon">🤖</span>
+          <span class="btn-label">SOLO</span>
+          <span class="btn-sub">vs AI</span>
+        </button>
+        <button class="btn btn-duel" data-action="play-duel">
+          <span class="btn-icon">👥</span>
+          <span class="btn-label">DUEL</span>
+          <span class="btn-sub">vs Player 2</span>
         </button>
         <button class="btn btn-howto" data-action="howto">
           <span class="btn-icon">📖</span>
@@ -70,7 +76,7 @@
         <div class="feature-chip"><span class="chip-icon">🪤</span><span class="chip-text">Hidden Trap</span></div>
       </div>
 
-      <p class="menu-footer">v3.0 · Gacha Tactical Edition</p>
+      <p class="menu-footer">v3.1 · Duel Edition</p>
     </div>
   </div>
 
@@ -111,9 +117,14 @@
       <button class="btn-back" data-action="back-to-menu">← BACK</button>
     </div>
     <div class="settings-content">
-            <div class="setting-row">
+      <div class="setting-row">
         <label>🎵 BGM</label>
         <button id="setting-bgm" class="toggle-btn">ON</button>
+      </div>
+
+      <div class="setting-row">
+        <label>⏭️ Auto End Turn</label>
+        <button id="setting-auto-end" class="toggle-btn">ON</button>
       </div>
 
       <div class="setting-row">
@@ -141,7 +152,7 @@
           </button>
         </div>
       </div>
-      
+
       <div class="setting-row">
         <label>🔊 Sound</label>
         <button id="setting-sound" class="toggle-btn">ON</button>
@@ -215,6 +226,18 @@
     <button class="btn-end-turn-bottom" id="btn-end-turn">
       END TURN <span class="arrow">→</span>
     </button>
+
+        <!-- Debug Button -->
+    <button class="btn-debug" id="btn-debug" title="Debug Info">🔍 DEBUG</button>
+
+    <!-- Debug Panel -->
+    <div id="debug-panel" class="debug-panel hidden">
+      <div class="debug-header">
+        <h3>🔍 DEBUG INFO</h3>
+        <button class="debug-close" id="debug-close">✕</button>
+      </div>
+      <div id="debug-content" class="debug-content"></div>
+    </div>
 
     <div id="info-panel" class="info-panel hidden">
       <h3>📊 GAME INFO</h3>

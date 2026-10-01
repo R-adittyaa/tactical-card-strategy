@@ -4,12 +4,9 @@ function showScreen(id) {
   document.getElementById(id).classList.add("active");
   playClickSound();
 
-  // BGM behavior per screen
   if (id === "game-screen") {
-    // Masuk gameplay → BGM mati
     AudioManager.stopBGM();
   } else {
-    // Menu / howto / settings → BGM main
     if (gameSettings.bgmEnabled) {
       AudioManager.playBGM(gameSettings.bgmTrack);
     }
@@ -27,13 +24,16 @@ function playClickSound() {
 
 // ===== INIT MENU =====
 function initMenu() {
-  // Navigasi tombol
   document.querySelectorAll("[data-action]").forEach((el) => {
     el.addEventListener("click", () => {
       const action = el.dataset.action;
-      if (action === "play") {
+      if (action === "play-solo") {
+        gameSettings.gameMode = "solo";
+        saveSettings();
         showScreen("game-screen");
         initGameUI();
+      } else if (action === "play-duel") {
+        alert("👥 DUEL mode coming soon!\n\nSabar ya, lagi dikerjain 😄");
       } else if (action === "howto") {
         showScreen("howto-screen");
       } else if (action === "settings") {
@@ -90,6 +90,20 @@ function initMenu() {
     });
   }
 
+  // Auto End Turn toggle
+  const autoEndBtn = document.getElementById("setting-auto-end");
+  if (autoEndBtn) {
+    autoEndBtn.textContent = gameSettings.autoEndTurn ? "ON" : "OFF";
+    autoEndBtn.classList.toggle("off", !gameSettings.autoEndTurn);
+    autoEndBtn.addEventListener("click", () => {
+      gameSettings.autoEndTurn = !gameSettings.autoEndTurn;
+      autoEndBtn.textContent = gameSettings.autoEndTurn ? "ON" : "OFF";
+      autoEndBtn.classList.toggle("off", !gameSettings.autoEndTurn);
+      playClickSound();
+      saveSettings();
+    });
+  }
+
   // BGM volume slider
   const bgmSlider = document.getElementById("setting-bgm-volume");
   const bgmValue = document.getElementById("bgm-volume-value");
@@ -117,7 +131,6 @@ function initMenu() {
     });
   });
 
-  // Set initial active song
   const activeSong = document.querySelector(`.song-btn[data-track="${gameSettings.bgmTrack}"]`);
   if (activeSong) {
     document.querySelectorAll(".song-btn").forEach((b) => b.classList.remove("active"));
@@ -143,7 +156,6 @@ function initMenu() {
     });
   });
 
-  // Set initial difficulty active
   const activeDiff = document.querySelector(`.diff-btn[data-diff="${gameSettings.difficulty}"]`);
   if (activeDiff) {
     document.querySelectorAll(".diff-btn").forEach((b) => b.classList.remove("active"));
@@ -152,11 +164,15 @@ function initMenu() {
     if (descEl) descEl.textContent = diffDescs[gameSettings.difficulty];
   }
 
+  // Default gameMode
+  if (!gameSettings.gameMode) {
+    gameSettings.gameMode = "solo";
+  }
+
   // Start hero rotation
   startHeroRotation();
 
-  // BGM autoplay attempt
-  // Browsers block autoplay sampai user interaksi — jadi tunggu klik pertama
+  // BGM autoplay
   const startBgmOnFirstClick = () => {
     if (gameSettings.bgmEnabled) {
       AudioManager.initBGM();

@@ -22,26 +22,19 @@ function _startAnimSafety() {
 }
 
 // ===== HERO EFFECTS =====
-function getPlayerHeroEffect() {
-  return gameState.playerHero;
-}
-function getEnemyHeroEffect() {
-  return gameState.enemyHero;
-}
+function getPlayerHeroEffect() { return gameState.playerHero; }
+function getEnemyHeroEffect() { return gameState.enemyHero; }
 
-// AP extra dari hero Merchant
 function getHeroAPBonus(hero) {
   if (hero === "merchant") return 1;
   return 0;
 }
 
-// Damage extra dari hero Archmage
 function getHeroSpellBonus(hero) {
   if (hero === "archmage") return 1;
   return 0;
 }
 
-// ATK extra dari hero Warlord
 function getHeroAtkBonus(hero) {
   if (hero === "warlord") return 1;
   return 0;
@@ -102,7 +95,7 @@ function updateHeroBadge() {
   badge.style.color = hero.color;
 }
 
-// ===== BONUS KELIPATAN 10 =====
+// ===== MILESTONE BONUS =====
 function checkTurnMilestone() {
   const turn = gameState.turn;
 
@@ -173,7 +166,7 @@ function initGameUI() {
   updateHintUI();
   updateHeroBadge();
 
-  // Tampilkan hero draw animation
+  // Tampilkan hero draw gacha
   showHeroDrawAnimation();
 
   const endBtn = document.getElementById("btn-end-turn");
@@ -198,9 +191,79 @@ function initGameUI() {
 
   _startMatchTimer();
   _updatePhaseIndicator();
+
+  // Cek auto-end setelah hero animation selesai
+  setTimeout(() => {
+    if (gameSettings.autoEndTurn) checkAutoEndTurn();
+  }, 6000);
+
+    // ===== DEBUG PANEL =====
+function updateDebugPanel() {
+  const wrapper = document.querySelector(".board-wrapper");
+  const board = document.getElementById("phaser-board");
+  const canvas = board ? board.querySelector("canvas") : null;
+
+  const wr = wrapper ? wrapper.getBoundingClientRect() : null;
+  const br = board ? board.getBoundingClientRect() : null;
+  const cr = canvas ? canvas.getBoundingClientRect() : null;
+
+  let lines = [];
+
+  lines.push("📐 WINDOW");
+  lines.push("  W: " + window.innerWidth + "  H: " + window.innerHeight);
+
+  lines.push("");
+  lines.push("📦 WRAPPER");
+  if (wr) {
+    lines.push("  W: " + Math.round(wr.width) + "  H: " + Math.round(wr.height));
+    lines.push("  X: " + Math.round(wr.x) + "  Y: " + Math.round(wr.y));
+  }
+
+  lines.push("");
+  lines.push("🎯 #phaser-board");
+  if (br) {
+    lines.push("  W: " + Math.round(br.width) + "  H: " + Math.round(br.height));
+    lines.push("  X: " + Math.round(br.x) + "  Y: " + Math.round(br.y));
+  }
+
+  lines.push("");
+  lines.push("🖼️ CANVAS");
+  if (cr) {
+    lines.push("  Display W: " + Math.round(cr.width));
+    lines.push("  Display H: " + Math.round(cr.height));
+  }
+  if (window.boardScene) {
+    lines.push("  Internal W: " + window.boardScene.scale.width);
+    lines.push("  Internal H: " + window.boardScene.scale.height);
+    lines.push("  TILE: " + window.boardScene.TILE);
+    lines.push("  GAP: " + window.boardScene.GAP);
+  }
+
+  lines.push("");
+  lines.push("🎮 STATE");
+  lines.push("  Turn: " + gameState.turn);
+  lines.push("  AP: " + gameState.playerAP);
+  lines.push("  Hand: " + gameState.hand.length);
+
+  lines.push("");
+  lines.push("🔍 OFFSET");
+  if (br && wr) {
+    const top = Math.round(br.y - wr.y);
+    const bottom = Math.round(wr.bottom - br.bottom);
+    lines.push("  Top: " + top + "px");
+    lines.push("  Bottom: " + bottom + "px");
+    lines.push("  Center? " + (Math.abs(top - bottom) < 10 ? "✅" : "❌"));
+  }
+
+  const text = lines.join("\n");
+  console.log(text);
+  alert(text);
+}
 }
 
-  // ===== HERO DRAW ANIMATION — GACHA STYLE =====
+// ============================================================
+// HERO DRAW ANIMATION — GACHA STYLE (FAST)
+// ============================================================
 function showHeroDrawAnimation() {
   const overlay = document.getElementById("hero-draw-overlay");
   if (!overlay) return;
@@ -218,134 +281,26 @@ function showHeroDrawAnimation() {
   const vsEl = document.getElementById("hero-vs");
   const skipBtn = document.getElementById("hero-draw-skip");
 
-  // Reset classes
+  // Reset semua
   playerSlot.classList.remove("slide-left");
   enemySlot.classList.remove("slide-right");
-  playerCard.classList.remove("flash", "warlord", "archmage", "merchant");
-  enemyCard.classList.remove("flash", "warlord", "archmage", "merchant");
+  playerCard.className = "hero-slot-card";
+  enemyCard.className = "hero-slot-card";
   vsEl.classList.remove("show");
   overlay.classList.remove("hidden", "closing");
-
-  // Skip handling
-  let skipped = false;
-  const skipHandler = () => {
-    skipped = true;
-    finishGacha();
-  };
-  skipBtn.onclick = skipHandler;
   skipBtn.style.display = "block";
 
-  // Play sound
-  playTurnSound();
+  // State
+  let skipped = false;
+  let activeRAF = null;
 
-  // ===== ROLL FUNCTION =====
-  // Roll hero names cepet, melambat, berhenti di target
-  function rollHero(cardEl, targetHeroKey, duration, onComplete) {
-    const heroKeys = Object.keys(HEROES);
-    const targetHero = HEROES[targetHeroKey];
-
-    // Ticks dari cepet ke lambat
-    // Start: 50ms, End: 300ms (ease out)
-    const tickSchedule = [];
-    let elapsed = 0;
-    const startInterval = 50;
-    const endInterval = 320;
-
-    while (elapsed < duration) {
-      // Interval melambat dengan ease
-      const progress = elapsed / duration;
-      const interval = startInterval + (endInterval - startInterval) * Math.pow(progress, 2);
-      tickSchedule.push(interval);
-      elapsed += interval;
-    }
-
-    let currentTick = 0;
-
-    function nextTick() {
-      if (skipped) return;
-
-      if (currentTick >= tickSchedule.length) {
-        // Final — tampil hero target
-        cardEl.className = "hero-slot-card " + targetHeroKey;
-        cardEl.innerHTML = `
-          <div class="hero-slot-icon">${targetHero.icon}</div>
-          <div class="hero-slot-name">${targetHero.name}</div>
-        `;
-        // Flash
-        cardEl.classList.add("flash");
-        playSpellSound();
-        if (onComplete) onComplete();
-        return;
-      }
-
-      // Random hero
-      const randomKey = heroKeys[Math.floor(Math.random() * heroKeys.length)];
-      const randomHero = HEROES[randomKey];
-      cardEl.className = "hero-slot-card " + randomKey;
-      cardEl.innerHTML = `
-        <div class="hero-slot-icon">${randomHero.icon}</div>
-        <div class="hero-slot-name">${randomHero.name}</div>
-      `;
-
-      // Play tick sound (soft)
-      if (gameSettings.soundEnabled && currentTick % 2 === 0) {
-        try {
-          AudioManager.play("click");
-        } catch (e) {}
-      }
-
-      const nextInterval = tickSchedule[currentTick];
-      currentTick++;
-      setTimeout(nextTick, nextInterval);
-    }
-
-    nextTick();
-  }
-
-  // ===== SEQUENCE =====
-  // 0.0s — Player gacha roll (1.8s)
-  setTimeout(() => {
+  const finishGacha = () => {
     if (skipped) return;
-    rollHero(playerCard, playerHeroKey, 1800, () => {
-      // 1.8s — Player STOP. Tunggu 300ms
-      if (skipped) return;
-      setTimeout(() => {
-        if (skipped) return;
-        // Player slide kiri
-        playerSlot.classList.add("slide-left");
+    skipped = true;
 
-        // Enemy gacha start
-        setTimeout(() => {
-          if (skipped) return;
-          rollHero(enemyCard, enemyHeroKey, 1800, () => {
-            // Enemy STOP
-            if (skipped) return;
-            setTimeout(() => {
-              if (skipped) return;
-              // Enemy slide kanan
-              enemySlot.classList.add("slide-right");
+    if (activeRAF) cancelAnimationFrame(activeRAF);
 
-              // VS muncul
-              setTimeout(() => {
-                if (skipped) return;
-                vsEl.classList.add("show");
-
-                // Close overlay after 1s
-                setTimeout(() => {
-                  if (skipped) return;
-                  closeGacha();
-                }, 1000);
-              }, 300);
-            }, 200);
-          });
-        }, 300);
-      }, 300);
-    });
-  }, 100);
-
-  // ===== FINISH (skip) =====
-  function finishGacha() {
-    // Set final state langsung
+    // Final state
     playerCard.className = "hero-slot-card " + playerHeroKey;
     playerCard.innerHTML = `
       <div class="hero-slot-icon">${playerHero.icon}</div>
@@ -359,20 +314,228 @@ function showHeroDrawAnimation() {
     playerSlot.classList.add("slide-left");
     enemySlot.classList.add("slide-right");
     vsEl.classList.add("show");
-    setTimeout(closeGacha, 400);
-  }
 
-  function closeGacha() {
+    setTimeout(closeGacha, 600);
+  };
+
+  const closeGacha = () => {
     skipBtn.style.display = "none";
     overlay.classList.add("closing");
     setTimeout(() => {
       overlay.classList.add("hidden");
       overlay.classList.remove("closing");
     }, 400);
+  };
+
+  skipBtn.onclick = finishGacha;
+
+  playTurnSound();
+
+  // ===== ROLL — pake requestAnimationFrame biar smooth, gak numpuk =====
+  function rollHero(cardEl, targetHeroKey, duration, onComplete) {
+    const heroKeys = Object.keys(HEROES);
+    const targetHero = HEROES[targetHeroKey];
+
+    const startTime = performance.now();
+    let lastTickTime = 0;
+
+    function animate() {
+      if (skipped) return;
+
+      const elapsed = performance.now() - startTime;
+      const progress = Math.min(1, elapsed / duration);
+
+      // Ease out cubic
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+
+      // Target interval — start 60ms, end 350ms
+      const targetInterval = 60 + (350 - 60) * easeProgress;
+
+      if (elapsed - lastTickTime >= targetInterval) {
+        lastTickTime = elapsed;
+
+        if (progress >= 1) {
+          // Final
+          cardEl.className = "hero-slot-card " + targetHeroKey;
+          cardEl.innerHTML = `
+            <div class="hero-slot-icon">${targetHero.icon}</div>
+            <div class="hero-slot-name">${targetHero.name}</div>
+          `;
+          cardEl.classList.add("flash");
+          playSpellSound();
+          if (onComplete) onComplete();
+          return;
+        }
+
+        // Random hero
+        const randomKey = heroKeys[Math.floor(Math.random() * heroKeys.length)];
+        const randomHero = HEROES[randomKey];
+        cardEl.className = "hero-slot-card " + randomKey;
+        cardEl.innerHTML = `
+          <div class="hero-slot-icon">${randomHero.icon}</div>
+          <div class="hero-slot-name">${randomHero.name}</div>
+        `;
+
+        // Sound tick — 40% chance
+        if (gameSettings.soundEnabled && Math.random() < 0.4) {
+          try { AudioManager.play("click"); } catch (e) {}
+        }
+      }
+
+      activeRAF = requestAnimationFrame(animate);
+    }
+
+    activeRAF = requestAnimationFrame(animate);
   }
+
+  // ===== SEQUENCE — player roll LANGSUNG =====
+  rollHero(playerCard, playerHeroKey, 1500, () => {
+    if (skipped) return;
+
+    // Player stop → slide kiri (200ms delay biar keliatan flash)
+    setTimeout(() => {
+      if (skipped) return;
+      playerSlot.classList.add("slide-left");
+
+      // Enemy roll — 200ms setelah slide
+      setTimeout(() => {
+        if (skipped) return;
+        rollHero(enemyCard, enemyHeroKey, 1500, () => {
+          if (skipped) return;
+
+          setTimeout(() => {
+            if (skipped) return;
+            enemySlot.classList.add("slide-right");
+
+            setTimeout(() => {
+              if (skipped) return;
+              vsEl.classList.add("show");
+
+              setTimeout(() => {
+                if (skipped) return;
+                closeGacha();
+              }, 1000);
+            }, 200);
+          }, 200);
+        });
+      }, 200);
+    }, 200);
+  });
 }
 
-// ===== TOP BAR =====
+// ============================================================
+// AUTO END TURN SYSTEM
+// ============================================================
+let _autoEndTimer = null;
+
+function checkAutoEndTurn() {
+  if (_autoEndTimer) {
+    clearTimeout(_autoEndTimer);
+    _autoEndTimer = null;
+  }
+
+  if (!gameSettings.autoEndTurn) return;
+  if (gameState.isAITurn) return;
+  if (gameState.isGameOver) return;
+  if (gameState.isAnimating) return;
+  if (gameState.selectedCard !== null) return;
+  if (gameState.selectedUnit) return;
+
+  if (hasValidAction()) return;
+
+  console.log("⏭️ Auto end turn triggered (no valid action)");
+
+  _autoEndTimer = setTimeout(() => {
+    if (hasValidAction()) return;
+    if (gameState.isAITurn || gameState.isGameOver || gameState.isAnimating) return;
+    if (gameState.selectedCard !== null || gameState.selectedUnit) return;
+
+    showAutoEndToast();
+    onEndTurnClick();
+  }, 1500);
+}
+
+function hasValidAction() {
+  // 1. Cek kartu affordable
+  for (const cardKey of gameState.hand) {
+    const card = CARDS[cardKey];
+    if (!card) continue;
+    if (card.cost <= gameState.playerAP) {
+      if (card.type === "UNIT") {
+        for (let r = 4; r < BOARD_SIZE; r++) {
+          for (let c = 0; c < BOARD_SIZE; c++) {
+            if (gameState.board[r][c] === null) return true;
+          }
+        }
+      }
+      if (card.type === "SPELL") {
+        if (card.effect === "TRAP") {
+          for (let r = 0; r < BOARD_SIZE; r++) {
+            for (let c = 0; c < BOARD_SIZE; c++) {
+              if (gameState.board[r][c] === null) return true;
+            }
+          }
+        }
+        if (card.effect === "ROW_DAMAGE") {
+          const enemyUnits = getUnitsByOwner("enemy");
+          if (enemyUnits.length > 0) return true;
+        }
+        if (card.effect === "DAMAGE") {
+          const enemyUnits = getUnitsByOwner("enemy");
+          if (enemyUnits.length > 0) return true;
+        }
+        if (card.effect === "HEAL" || card.effect === "BUFF") {
+          const playerUnits = getUnitsByOwner("player");
+          if (playerUnits.length > 0) return true;
+        }
+      }
+    }
+  }
+
+  // 2. Cek unit player bisa gerak / nyerang
+  const playerUnits = getUnitsByOwner("player");
+  for (const pu of playerUnits) {
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    for (const [dr, dc] of dirs) {
+      const nr = pu.row + dr;
+      const nc = pu.col + dc;
+      if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
+        if (gameState.board[nr][nc] === null) return true;
+      }
+    }
+
+    const enemyUnits = getUnitsByOwner("enemy");
+    for (const eu of enemyUnits) {
+      const d = distance(pu.row, pu.col, eu.row, eu.col);
+      if (d <= pu.unit.range && d > 0) return true;
+    }
+  }
+
+  // 3. Cek AP cukup buat minimal 1 aksi
+  if (gameState.playerAP >= 1) {
+    if (playerUnits.length > 0) return true;
+  }
+
+  return false;
+}
+
+function showAutoEndToast() {
+  const toast = document.createElement("div");
+  toast.className = "auto-end-toast";
+  toast.textContent = "⏭️ Auto End Turn";
+  document.getElementById("game-screen").appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add("show");
+    setTimeout(() => {
+      toast.classList.remove("show");
+      setTimeout(() => toast.remove(), 300);
+    }, 1200);
+  }, 50);
+}
+
+// ============================================================
+// INIT / TOP BAR / HAND
+// ============================================================
 function updateTopBarUI() {
   document.getElementById("stat-turn").textContent = gameState.turn;
   const apEl = document.getElementById("stat-ap");
@@ -383,7 +546,6 @@ function updateTopBarUI() {
   if (eEl) eEl.textContent = gameState.enemyKingHP;
 }
 
-// ===== HAND =====
 function renderHandUI() {
   const hand = document.getElementById("hand");
   hand.innerHTML = "";
@@ -416,7 +578,6 @@ function renderHandUI() {
   });
 }
 
-// ===== KLIK KARTU =====
 function onCardClick(index) {
   if (gameState.isAITurn || gameState.isGameOver || gameState.isAnimating) return;
   playClickSound();
@@ -431,9 +592,13 @@ function onCardClick(index) {
   renderHandUI();
   updateHintUI();
   if (window.boardScene) window.boardScene.refresh();
+
+  if (_autoEndTimer) {
+    clearTimeout(_autoEndTimer);
+    _autoEndTimer = null;
+  }
 }
 
-// ===== KLIK TILE =====
 window.onBoardTileClick = function (row, col) {
   if (gameState.isAITurn || gameState.isGameOver || gameState.isAnimating) return;
 
@@ -455,10 +620,14 @@ window.onBoardTileClick = function (row, col) {
     renderHandUI();
     updateHintUI();
     if (window.boardScene) window.boardScene.refresh();
+
+    if (_autoEndTimer) {
+      clearTimeout(_autoEndTimer);
+      _autoEndTimer = null;
+    }
   }
 };
 
-// ===== HANDLE CARD PLAY =====
 function handleCardPlay(row, col) {
   const cardKey = gameState.hand[gameState.selectedCard];
   const card = CARDS[cardKey];
@@ -502,6 +671,8 @@ function handleCardPlay(row, col) {
       window.boardScene.refresh();
       window.boardScene.animateSpawn(row, col);
     }
+
+    scheduleAutoEnd();
     return;
   }
 
@@ -519,7 +690,6 @@ function handleCardPlay(row, col) {
   }
 }
 
-// ===== TRAP =====
 function handleTrapPlay(row, col, card, cardKey) {
   if (gameState.board[row][col] !== null) { playClickSound(); return; }
   if (gameState.traps && gameState.traps.some((t) => t.row === row && t.col === col)) { playClickSound(); return; }
@@ -539,6 +709,8 @@ function handleTrapPlay(row, col, card, cardKey) {
   updateHintUI();
   updateInfoPanelUI();
   if (window.boardScene) window.boardScene.refresh();
+
+  scheduleAutoEnd();
 }
 
 function checkTrapAt(row, col, mover) {
@@ -573,7 +745,6 @@ function checkTrapAt(row, col, mover) {
   return true;
 }
 
-// ===== ROW DAMAGE (Lightning) =====
 function handleRowDamagePlay(row, card, cardKey) {
   const heroBonus = getHeroSpellBonus(gameState.playerHero);
   const damage = card.value + heroBonus;
@@ -627,10 +798,10 @@ function handleRowDamagePlay(row, card, cardKey) {
     updateInfoPanelUI();
     if (window.boardScene) window.boardScene.refresh();
     checkWinLoss();
+    scheduleAutoEnd();
   }, 400);
 }
 
-// ===== SPELL =====
 function handleSpellPlay(row, col, card, cardKey) {
   const target = gameState.board[row][col];
   if (!target) return;
@@ -677,10 +848,10 @@ function handleSpellPlay(row, col, card, cardKey) {
     updateInfoPanelUI();
     if (window.boardScene) window.boardScene.refresh();
     checkWinLoss();
+    scheduleAutoEnd();
   }, 400);
 }
 
-// ===== HANDLE UNIT ACTION =====
 function handleUnitAction(row, col) {
   const { row: sr, col: sc } = gameState.selectedUnit;
   const occupant = gameState.board[row][col];
@@ -715,7 +886,6 @@ function handleUnitAction(row, col) {
   if (window.boardScene) window.boardScene.refresh();
 }
 
-// ===== MOVE =====
 function executeMove(fromRow, fromCol, toRow, toCol) {
   gameState.isAnimating = true;
   _startAnimSafety();
@@ -740,10 +910,10 @@ function executeMove(fromRow, fromCol, toRow, toCol) {
   setTimeout(() => {
     gameState.isAnimating = false;
     if (window.boardScene) window.boardScene.refresh();
+    scheduleAutoEnd();
   }, trapped ? 500 : 300);
 }
 
-// ===== ATTACK =====
 function executeAttack(fromRow, fromCol, toRow, toCol) {
   gameState.isAnimating = true;
   _startAnimSafety();
@@ -776,19 +946,26 @@ function executeAttack(fromRow, fromCol, toRow, toCol) {
     updateHintUI();
     if (window.boardScene) window.boardScene.refresh();
     checkWinLoss();
+    scheduleAutoEnd();
   }, 400);
 }
 
-// ===== END TURN =====
+function scheduleAutoEnd() {
+  if (!gameSettings.autoEndTurn) return;
+  setTimeout(() => {
+    checkAutoEndTurn();
+  }, 800);
+}
+
 function onEndTurnClick() {
   console.log("🎯 End Turn diklik. isAITurn:", gameState.isAITurn, "isAnimating:", gameState.isAnimating);
 
+  if (_autoEndTimer) {
+    clearTimeout(_autoEndTimer);
+    _autoEndTimer = null;
+  }
+
   if (gameState.isAITurn || gameState.isGameOver || gameState.isAnimating) {
-    console.warn("⛔ End Turn diblokir:", {
-      isAITurn: gameState.isAITurn,
-      isGameOver: gameState.isGameOver,
-      isAnimating: gameState.isAnimating,
-    });
     return;
   }
   playClickSound();
@@ -829,7 +1006,6 @@ function aiStep(stepNum) {
   if (gameState.isGameOver) { endAITurn(); return; }
 
   if (stepNum > 15) {
-    console.warn("⚠️ AI max step 15, force end");
     forceEndAITurn();
     return;
   }
@@ -837,7 +1013,6 @@ function aiStep(stepNum) {
   if (gameState.enemyAP === gameState._aiLastAP) {
     gameState._aiStuckCount++;
     if (gameState._aiStuckCount >= 2) {
-      console.warn("⚠️ AI stuck AP 2x, force end");
       forceEndAITurn();
       return;
     }
@@ -850,7 +1025,7 @@ function aiStep(stepNum) {
   try {
     acted = aiDoAction();
   } catch (e) {
-    console.error("❌ AI error di aiDoAction:", e);
+    console.error("❌ AI error:", e);
     forceEndAITurn();
     return;
   }
@@ -863,7 +1038,6 @@ function aiStep(stepNum) {
 }
 
 function forceEndAITurn() {
-  console.log("🚨 Force ending AI turn...");
   gameState.isAITurn = false;
   gameState._aiStuckCount = 0;
   gameState.turn++;
@@ -886,11 +1060,10 @@ function forceEndAITurn() {
   showTurnBanner("YOUR TURN");
   playTurnSound();
   _updatePhaseIndicator();
+
+  scheduleAutoEnd();
 }
 
-// ============================================================
-// AI 2.0
-// ============================================================
 function aiDoAction() {
   const enemyUnits = getUnitsByOwner("enemy");
   const playerUnits = getUnitsByOwner("player");
@@ -1080,7 +1253,6 @@ function aiDoAction() {
   return false;
 }
 
-// ===== AI SPELL HELPERS =====
 function aiCastDamageSpell(handIndex, row, col, card) {
   const target = gameState.board[row][col];
   if (!target) return false;
@@ -1367,6 +1539,8 @@ function endAITurn() {
   showTurnBanner("YOUR TURN");
   playTurnSound();
   _updatePhaseIndicator();
+
+  scheduleAutoEnd();
 }
 
 // ===== HELPERS =====
@@ -1449,7 +1623,6 @@ function findBestMove(fromRow, fromCol) {
   return best;
 }
 
-// ===== HINT =====
 function updateHintUI() {
   const hint = document.getElementById("game-hint");
   if (!hint) return;
@@ -1476,7 +1649,6 @@ function updateHintUI() {
   }
 }
 
-// ===== INFO PANEL =====
 function updateInfoPanelUI() {
   const deckEl = document.getElementById("info-deck");
   if (deckEl) deckEl.textContent = gameState.deck.length;
@@ -1494,14 +1666,12 @@ function updateInfoPanelUI() {
   }
 }
 
-// ===== SOUNDS =====
 function playClickSound()  { AudioManager.play("click"); }
 function playAttackSound() { AudioManager.play("attack"); }
 function playSpellSound()  { AudioManager.play("spell"); }
 function playDeathSound()  { AudioManager.play("death"); }
 function playTurnSound()   { AudioManager.play("turn"); }
 
-// ===== BANNERS =====
 function showTurnBanner(text) {
   const banner = document.createElement("div");
   banner.className = "turn-banner show";
@@ -1522,7 +1692,6 @@ function showSpellNotification(icon, name, color) {
   setTimeout(() => notif.remove(), 1600);
 }
 
-// ===== WIN / LOSS =====
 function checkWinLoss() {
   if (gameState.enemyKingHP <= 0) {
     showGameOver("🎉 YOU WIN!", "King musuh berhasil lu hancurin!");
@@ -1561,4 +1730,8 @@ function backToMenu() {
   _stopMatchTimer();
   document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
   document.getElementById("menu-screen").classList.add("active");
+
+  if (gameSettings.bgmEnabled) {
+    AudioManager.playBGM(gameSettings.bgmTrack);
+  }
 }

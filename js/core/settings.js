@@ -4,8 +4,10 @@ const gameSettings = {
   volume: 0.5,
   bgmEnabled: true,
   bgmVolume: 0.3,
-  bgmTrack: 1,           // 1, 2, atau 3
+  bgmTrack: 1,
   difficulty: "normal",
+  autoEndTurn: true,
+  gameMode: "solo",
 };
 
 // ===== BGM LIBRARY =====
@@ -25,6 +27,8 @@ function saveSettings() {
       bgmVolume: gameSettings.bgmVolume,
       bgmTrack: gameSettings.bgmTrack,
       difficulty: gameSettings.difficulty,
+      autoEndTurn: gameSettings.autoEndTurn,
+      gameMode: gameSettings.gameMode,
     }));
   } catch (e) {
     console.warn("Gagal save settings:", e);
@@ -42,10 +46,11 @@ function loadSettings() {
     if (typeof data.bgmVolume === "number") gameSettings.bgmVolume = data.bgmVolume;
     if (typeof data.bgmTrack === "number") gameSettings.bgmTrack = data.bgmTrack;
     if (typeof data.difficulty === "string") gameSettings.difficulty = data.difficulty;
+    if (typeof data.autoEndTurn === "boolean") gameSettings.autoEndTurn = data.autoEndTurn;
+    if (typeof data.gameMode === "string") gameSettings.gameMode = data.gameMode;
   } catch (e) {
     console.warn("Gagal load settings:", e);
   }
 }
 
-// Auto-load pas file init
 loadSettings();

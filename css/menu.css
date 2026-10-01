@@ -704,3 +704,24 @@ input[type="range"]::-moz-range-thumb {
     font-size: 0.6rem;
   }
 }
+
+/* ===== SOLO & DUEL BUTTONS ===== */
+.btn-solo {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.35);
+}
+
+.btn-duel {
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.35);
+}
+
+.btn-sub {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.6rem;
+  font-weight: 500;
+  opacity: 0.75;
+  letter-spacing: 0.5px;
+  margin-left: 6px;
+  text-transform: none;
+}
